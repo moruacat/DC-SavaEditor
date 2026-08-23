@@ -8,6 +8,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "electron": "^22.0.0"
   }
 }
