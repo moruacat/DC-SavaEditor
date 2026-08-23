@@ -1,0 +1,20 @@
+[package]
+name = "dc-save-editor"
+version = "0.1.0"
+description = "恶魔连结 存档编辑器 (Tauri)"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+dirs = "5"
+
+[lib]
+name = "dc_save_editor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
