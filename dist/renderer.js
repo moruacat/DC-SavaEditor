@@ -359,9 +359,9 @@ function renderSystem() {
     ta.rows = 1
     ta.className = 'auto-grow'
     ta.value = Array.isArray(m[key]) ? m[key].join(', ') : (m[key] || '')
-    bindAutoGrow(ta)
     f.appendChild(ta)
     lBox.appendChild(f)
+    bindAutoGrow(ta) // 挂载后再绑定，确保 getComputedStyle 读到真实样式
   }
   // 结局
   const endGrid = $('end-grid')
@@ -1024,7 +1024,9 @@ function showToast(msg, type) {
 // 文本域自动增高：展开最多 4 行（超出滚动），收起回单行；带 height 过渡动画
 function bindAutoGrow(ta) {
   const cs = getComputedStyle(ta)
-  const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4
+  const fs = parseFloat(cs.fontSize) || 13
+  const rawLh = parseFloat(cs.lineHeight)
+  const lh = rawLh || fs * 1.4
   const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
   const oneLine = Math.round(lh + pad) // 单行
   const fourLine = Math.round(lh * 4 + pad) // 4 行
