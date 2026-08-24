@@ -263,6 +263,28 @@ body {
 }
 .slot-hint-close:hover { opacity: 1; }
 
+/* ---------- 概览圆形进度 ---------- */
+.progress-row { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 16px; }
+.progress-item { display: flex; align-items: center; gap: 10px; }
+.progress-ring { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.progress-inner { width: 50px; height: 50px; border-radius: 50%; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.progress-inner .pct { font-size: 13px; font-weight: 600; color: var(--text); }
+.progress-inner .cnt { font-size: 10px; color: var(--muted); }
+.progress-label { font-size: 12px; color: var(--muted); }
+
+/* ---------- 保存提示 toast ---------- */
+.toast {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+  padding: 10px 18px; border-radius: var(--r-pill); z-index: 200;
+  background: var(--surface-container); color: var(--text);
+  box-shadow: var(--e3); font-size: 13px; font-weight: 500;
+  animation: fadeUp .2s ease;
+}
+.toast.success { background: #1b8a3a; color: #fff; }
+.toast.error { background: var(--danger); color: #fff; }
+.toast.busy { filter: brightness(1.2); }
+.toast.hidden { display: none; }
+
 /* ---------- 表单 ---------- */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 14px; }
 .form-grid .field { display: flex; align-items: center; gap: 8px; }
@@ -331,7 +353,7 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
   animation-delay: var(--i-delay, 0ms);
 }
 .grid .card:hover { transform: translateY(-3px); box-shadow: var(--e2); }
-.grid .card img { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--thumb-bg); }
+.grid .card img { width: 100%; height: 120px; object-fit: contain; object-position: center; display: block; background: var(--thumb-bg); }
 .grid .card .cap { padding: 6px 10px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- 槽位 ---------- */

@@ -47,14 +47,15 @@
         <!-- 系统存档面板 -->
         <div id="panel-system" class="panel">
           <div class="tabs">
-            <button class="tab active" data-tab="overview">📊 概览</button>
-            <button class="tab" data-tab="endings">🏆 结局图鉴</button>
-            <button class="tab" data-tab="stickers">🪄 贴纸</button>
-            <button class="tab" data-tab="vars">🧬 全局变量</button>
-            <button class="tab" data-tab="json">📝 JSON</button>
+            <button class="tab active" data-tab="overview">概览</button>
+            <button class="tab" data-tab="endings">结局</button>
+            <button class="tab" data-tab="stickers">贴纸</button>
+            <button class="tab" data-tab="vars">变量</button>
+            <button class="tab" data-tab="json">JSON</button>
           </div>
           <div id="sys-overview" class="tabpage active">
             <div id="name-hint" class="hint"></div>
+            <div id="overview-progress" class="progress-row"></div>
             <div class="form-grid" id="sf-fields"></div>
             <h4>判定统计 (judgeCounts)</h4>
             <div class="form-grid" id="judge-fields"></div>
@@ -90,7 +91,7 @@
             <div id="slot-detail" class="slot-detail">
               <div class="form-grid" id="slot-meta"></div>
               <h4>stat.f 变量</h4>
-              <div id="slot-vars" class="var-table compact"></div>
+              <div id="slot-vars" class="var-table"></div>
             </div>
           </div>
         </div>
@@ -99,6 +100,7 @@
   </div>
 
   <footer id="statusbar">就绪</footer>
+  <div id="toast" class="toast hidden"></div>
 
   <!-- 照片大图模态 -->
   <div id="modal" class="modal hidden">

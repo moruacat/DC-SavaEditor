@@ -112,6 +112,14 @@ async function openDir(dir) {
   renderFileList(groups)
   renderPhotos()
   setStatus(`${savs.length} 个存档文件，${S.photos.length} 张照片`)
+  // 无任何可编辑存档（系统/槽位/快速）时的说明
+  const hasEditable = groups.system.length || groups.slots.length || groups.single.length
+  if (!hasEditable) {
+    const tip = $('empty-hint')
+    tip.querySelector('p').textContent = '当前文件夹未找到可编辑的存档（系统/槽位/快速自动存档）。'
+    showEmptyHint(true)
+    return
+  }
   showPanel('photo')
   showEmptyHint(false)
 }
@@ -278,6 +286,34 @@ function loadSystem(path, obj) {
   showPanel('system')
 }
 
+// 概览圆形进度：结局解锁、结局收集、贴纸收集（百分比 + 数量/总数）
+function renderOverviewProgress(m) {
+  const box = $('overview-progress')
+  if (!box) return
+  box.innerHTML = ''
+  const totalEnd = Object.keys(ENDINGS).length || 0
+  const totalStick = Object.keys(STICKERS).length || 0
+  const endings = new Set(String(m.endings || []).split(',').filter(Boolean))
+  const collected = new Set(String(m.collectedEndings || []).split(',').filter(Boolean))
+  const stickers = Array.isArray(m.sticker) ? m.sticker : []
+  const mk = (label, cur, total, color) => {
+    const pct = total ? Math.round((cur / total) * 100) : 0
+    const ring = el('div', 'progress-ring')
+    ring.style.background = `conic-gradient(${color} ${pct}%, var(--surface-container-high) 0)`
+    const inner = el('div', 'progress-inner')
+    inner.appendChild(el('span', 'pct', pct + '%'))
+    inner.appendChild(el('span', 'cnt', `${cur}/${total}`))
+    ring.appendChild(inner)
+    const wrap = el('div', 'progress-item')
+    wrap.appendChild(ring)
+    wrap.appendChild(el('div', 'progress-label', label))
+    return wrap
+  }
+  box.appendChild(mk('结局解锁', endings.size, totalEnd, 'var(--primary)'))
+  box.appendChild(mk('结局收集', collected.size, totalEnd, 'var(--primary)'))
+  box.appendChild(mk('贴纸收集', stickers.length, totalStick, 'var(--secondary)'))
+}
+
 function renderSystem() {
   const m = S.system.obj
   // 概览字段
@@ -382,19 +418,35 @@ function renderSystem() {
   renderVarTable($('var-table'), m.initialVars || {}, false)
   // JSON
   $('json-editor').value = JSON.stringify(m, null, 2)
+  // 概览圆形进度（结局收集 / 贴纸收集）
+  renderOverviewProgress(m)
+  // 自动判断全解锁 / 全收集
+  const endAll = () => $('end-grid').querySelectorAll('input[data-field="end"]').length > 0
+    && [...$('end-grid').querySelectorAll('input[data-field="end"][data-kind="endings"]')].every(cb => cb.checked)
+  const collectAll = () => $('end-grid').querySelectorAll('input[data-field="end"][data-kind="collectedEndings"]').length > 0
+    && [...$('end-grid').querySelectorAll('input[data-field="end"][data-kind="collectedEndings"]')].every(cb => cb.checked)
+  const stickAll = () => $('stick-grid').querySelectorAll('input[data-field="stick"]').length > 0
+    && [...$('stick-grid').querySelectorAll('input[data-field="stick"]')].every(cb => cb.checked)
+  // 程序设置 checked 不触发 onchange，仅用于如实反映当前是否已全解锁/全收集
+  $('end-unlock-all').checked = endAll()
+  $('end-collect-all').checked = collectAll()
+  $('stick-all').checked = stickAll()
   // 全部解锁/收集快捷
   $('end-unlock-all').onchange = e => {
     $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
       if (cb.dataset.kind === 'endings') cb.checked = e.target.checked
     })
+    renderOverviewProgress(m)
   }
   $('end-collect-all').onchange = e => {
     $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
       if (cb.dataset.kind === 'collectedEndings') cb.checked = e.target.checked
     })
+    renderOverviewProgress(m)
   }
   $('stick-all').onchange = e => {
     $('stick-grid').querySelectorAll('input[data-field="stick"]').forEach(cb => { cb.checked = e.target.checked })
+    renderOverviewProgress(m)
   }
   initTabButtons()
   updateSaveBtn()
@@ -504,17 +556,16 @@ function fmtVarVal(v, type) {
   return String(v)
 }
 
-// 槽位 stat.f 变量表（两列：变量名 + 值），说明显示在变量名悬停
+// 槽位 stat.f 变量表（变量名 / 说明 / 值，与系统存档变量表一致）
 function renderCompactSlots(container, data, descMap) {
   container.innerHTML = ''
   container.appendChild(el('div', 'vt-head', '变量名'))
+  container.appendChild(el('div', 'vt-head', '说明'))
   container.appendChild(el('div', 'vt-head', '值'))
   const keys = Object.keys(data || {}).sort()
   for (const k of keys) {
-    const name = el('div', 'vt-name', k)
-    const d = descMap[k]
-    name.title = d ? `${k} — ${d}` : `游戏运行时变量 f.${k}（含义未收录，请谨慎修改）`
-    container.appendChild(name)
+    container.appendChild(el('div', 'vt-name', k))
+    container.appendChild(el('div', 'vt-desc', descMap[k] || '游戏运行时变量 f.' + k + '（含义未收录，请谨慎修改）'))
     const cell = el('div', 'vt-val')
     const inp = el('input')
     inp.dataset.var = k
@@ -900,6 +951,7 @@ function collectSingleSlot(slot) {
 }
 
 function saveAll() {
+  showToast('保存中…', 'busy')
   try {
     if (S.currentPanel === 'system' && S.system) {
       collectSystem()
@@ -915,9 +967,23 @@ function saveAll() {
       renderSlotGrid()
       setStatus('已保存: ' + S.slots.path)
     }
+    showToast('保存成功', 'success')
   } catch (err) {
     setStatus('保存失败: ' + err.message)
+    showToast('保存失败: ' + err.message, 'error')
   }
+}
+
+// 轻量 toast 提示：成功/主题色=success，保存中=busy，失败=error
+let toastTimer = null
+function showToast(msg, type) {
+  const t = $('toast')
+  if (!t) return
+  t.textContent = msg
+  t.className = 'toast ' + (type || 'success')
+  if (toastTimer) clearTimeout(toastTimer)
+  if (type === 'busy') return // 保存中持续显示
+  toastTimer = setTimeout(() => { t.className = 'toast hidden' }, 2200)
 }
 
 // ================= 工具函数 =================
