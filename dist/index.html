@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src ipc: http://ipc.localhost" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.github.com" />
   <title>恶魔连结 存档编辑器</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -22,6 +22,8 @@
     <button id="btn-import" class="btn" title="导入明文 JSON 并载入系统存档">⬆ 导入</button>
     <button id="btn-theme" class="btn" title="切换深色/浅色模式">🌙 深色</button>
     <button id="btn-anim" class="btn" title="切换界面动画（回弹/弹跳/平滑过渡）">🎬 动画</button>
+    <select id="lang-sel" class="lang-select" title="界面语言（检测到 lang_*.json 时可用）" style="display:none"></select>
+    <button id="btn-update" class="btn" title="检查 GitHub 最新版本">🔁 检查更新</button>
     <button id="btn-save" class="btn primary" disabled>保存</button>
   </header>
 

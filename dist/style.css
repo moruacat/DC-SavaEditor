@@ -171,6 +171,11 @@ body {
 }
 .btn.primary:hover { filter: brightness(1.05); box-shadow: var(--e2); }
 .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.lang-select {
+  padding: 6px 8px; border: 1px solid var(--border-soft); border-radius: var(--r-pill);
+  background: var(--secondary-container); color: var(--on-secondary-container);
+  font-size: 13px; cursor: pointer; flex: 0 0 auto;
+}
 .path-label { color: var(--muted); font-size: 12px; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .path-label.small { max-width: 200px; }
 .spacer { flex: 1; }

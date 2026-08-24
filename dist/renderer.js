@@ -1113,6 +1113,46 @@ $('btn-restore').onclick = async () => {
 }
 $('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
 
+// ---------- 检查更新（GitHub Releases） ----------
+const APP_VERSION = '0.1.1'
+const UPDATE_REPO = 'morucat/DC-SavaEditor' // 由环境覆盖
+function versionCmp(a, b) {
+  // a > b 返回 1，a < b 返回 -1，相等 0
+  const pa = String(a).replace(/^[vV]/,'').split('.').map(n => parseInt(n, 10) || 0)
+  const pb = String(b).replace(/^[vV]/,'').split('.').map(n => parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0
+    if (x > y) return 1
+    if (x < y) return -1
+  }
+  return 0
+}
+$('btn-update').onclick = async () => {
+  const btn = $('btn-update')
+  btn.textContent = '⌛ 检查中…'
+  try {
+    const res = await fetch('https://api.github.com/repos/morucat/DC-SavaEditor/releases/latest')
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    const latest = data.tag_name || ''
+    const online = String(latest).replace(/^v/i, '')
+    const cur = APP_VERSION
+    if (!online) { showToast('远程无版本信息', 'error') }
+    else if (versionCmp(online, cur) > 0) {
+      showToast(`发现新版本 ${latest}（当前 ${APP_VERSION}），请前往 GitHub Releases 下载`, 'success')
+      if (data.html_url) setStatus('新版本: ' + latest + '  ' + data.html_url)
+    } else {
+      showToast(`已是最新版本 ${cur}`, '')
+      setStatus('已是最新版本')
+    }
+  } catch (e) {
+    showToast('检查更新失败（网络/网络受限）', 'error')
+    setStatus('检查更新失败: ' + e.message)
+  } finally {
+    btn.textContent = '🔁 检查更新'
+  }
+}
+
 // 导出系统存档（解码为明文 JSON）
 $('btn-export').onclick = async () => {
   if (!S.system) { showToast('请先打开系统存档', 'error'); return }
@@ -1167,6 +1207,54 @@ $('btn-resource').onclick = async () => {
 $('modal-close').onclick = () => $('modal').classList.add('hidden')
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden') })
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('modal').classList.add('hidden') })
+
+// ---------- 多语言（lang_*.json，检测到才显示语言选择） ----------
+const I18N_CODES = [
+  { code: 'en', name: 'English' },
+  { code: 'ja', name: '日本語' },
+  { code: 'ko', name: '한국어' },
+  { code: 'zh-Hant', name: '繁體中文' },
+]
+let i18nMap = null // 当前翻译 { 原中文: 译文 }
+function applyI18n() {
+  if (!i18nMap) return
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  while (walker.nextNode()) {
+    const n = walker.currentNode
+    const v = n.nodeValue
+    if (v && i18nMap[v]) n.nodeValue = i18nMap[v]
+  }
+  document.querySelectorAll('input[placeholder]').forEach(el => {
+    const p = el.getAttribute('placeholder')
+    if (p && i18nMap[p]) el.setAttribute('placeholder', i18nMap[p])
+  })
+}
+async function initI18n() {
+  const sel = $('lang-sel')
+  // 探测可用的翻译文件
+  const found = []
+  for (const l of I18N_CODES) {
+    try {
+      const r = await fetch(`lang_${l.code}.json`)
+      if (r.ok) { found.push({ ...l, map: await r.json() }) }
+    } catch (_) {}
+  }
+  // 检测到任何翻译文件才显示语言选择
+  if (!found.length) { sel.style.display = 'none'; return }
+  sel.style.display = ''
+  sel.innerHTML = '<option value="zh">中文</option>' + found.map(l => `<option value="${l.code}">${l.name}</option>`).join('')
+  let saved = null
+  try { saved = localStorage.getItem('dc-lang') } catch (_) {}
+  if (saved) { sel.value = saved; const hit = found.find(l => l.code === saved); if (hit) { i18nMap = hit.map; applyI18n() } }
+  sel.addEventListener('change', () => {
+    const code = sel.value
+    if (code === 'zh') { i18nMap = null }
+    else { const hit = found.find(l => l.code === code); if (hit) i18nMap = hit.map }
+    try { localStorage.setItem('dc-lang', code) } catch (_) {}
+    applyI18n()
+    showToast(i18nMap ? '界面已切换语言' : '界面已恢复中文', 'success')
+  })
+}
 
 // ---------- 字段搜索 ----------
 $('var-search').addEventListener('input', e => filterVarRows($('var-table'), e.target.value))
@@ -1267,6 +1355,7 @@ function applyAnim(en) {
 ;(async function init() {
   initTheme()
   initAnim()
+  await initI18n()
   try {
     const dir = await window.api.defaultStorage()
     $('res-label').textContent = (await window.api.resourceRoots()).find(() => true) || ''
