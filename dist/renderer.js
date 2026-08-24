@@ -502,6 +502,7 @@ function renderSystem() {
   updateNameHint()
   renderRoles()
   renderRolePedia()
+  renderExtraPedia()
 }
 
 // ================= 角色图鉴（sf.collectedCharacters 勾选） =================
@@ -528,6 +529,63 @@ function renderRolePedia() {
   $('rolepedia-all').onchange = e => {
     $('rolepedia-grid').querySelectorAll('input[data-field="role"]').forEach(cb => { cb.checked = e.target.checked })
   }
+}
+
+// ================= 附加内容图鉴（omakes / gallery / ngScene 勾选，gallery/ngScene 带缩略图预览） =================
+function renderExtraPedia() {
+  const m = S.system.obj
+  const base = 'data/image/collection_omake'
+  const renderGrid = (layerId, allId, items, curSet, dataField, getLabel, imgSrc) => {
+    const grid = $(layerId)
+    if (!grid) return
+    grid.innerHTML = ''
+    items.forEach((it, i) => {
+      const key = String(it.id ?? it.name ?? it)
+      const label = el('label')
+      if (imgSrc) label.classList.add('with-img')
+      label.style.setProperty('--i-delay', Math.min(i * 12, 700) + 'ms')
+      // 缩略图预览（从游戏资源提取）
+      if (imgSrc) {
+        const im = el('img', 'extra-img')
+        im.dataset.key = key // 供刷新预览用
+        const k = imgSrc(it)
+        if (k) window.api.readResource(k).then(d => { if (d) im.src = d }).catch(() => {})
+        label.appendChild(im)
+      }
+      const cb = el('input')
+      cb.type = 'checkbox'
+      cb.checked = curSet.has(key)
+      cb.dataset.field = dataField
+      cb.dataset.name = key
+      const meta = el('div', 'meta')
+      meta.appendChild(cb)
+      meta.appendChild(el('span', 'name', getLabel(it)))
+      if (!imgSrc) meta.appendChild(el('span', 'id', key))
+      label.title = getLabel(it)
+      label.appendChild(meta)
+      grid.appendChild(label)
+    })
+    const all = $(allId)
+    all.checked = (curSet.size >= items.length)
+    all.onchange = e => {
+      grid.querySelectorAll(`input[data-field="${dataField}"]`).forEach(cb => { cb.checked = e.target.checked })
+    }
+  }
+
+  // 剧场：omakes 存结局编号（字符串），标题取自 ENDINGS（无独立缩略图）
+  const omakeSet = new Set(String(m.omakes || []).split(',').filter(Boolean))
+  renderGrid('extra-omake', 'omake-all', OMAKE_LIB, omakeSet, 'omake',
+    id => (ENDINGS[id] && ENDINGS[id].title) || ('剧场 ' + id))
+
+  // 相册：gallery 存 name，缩略图 collection_omake/gallery/thumb/<name>.webp
+  const galSet = new Set(String(m.gallery || []).split(',').filter(Boolean))
+  renderGrid('extra-gallery', 'gallery-all', GALLERY_LIB, galSet, 'gallery',
+    g => g.title, g => `${base}/gallery/thumb/${g.name}.webp`)
+
+  // NG 场景：ngScene 存 name，缩略图 collection_omake/ng/thumb/<name>.webp
+  const ngSet = new Set(String(m.ngScene || []).split(',').filter(Boolean))
+  renderGrid('extra-ngscene', 'ngscene-all', NGSCENE_LIB, ngSet, 'ngscene',
+    g => g.title, g => `${base}/ng/thumb/${g.name}.webp`)
 }
 
 // 召唤师名字提示：实际名字存储在槽位存档 stat.f.name，系统存档 initialVars.name 为初始默认值
@@ -1122,6 +1180,27 @@ function collectSystem() {
     else roles.delete(cb.dataset.name)
   })
   m.collectedCharacters = ROLE_LIB.filter(n => roles.has(n))
+  // 剧场（omakes：结局编号集合）
+  const omakeSet = new Set(String(m.omakes || []).split(',').filter(Boolean))
+  document.querySelectorAll('input[data-field="omake"]').forEach(cb => {
+    if (cb.checked) omakeSet.add(cb.dataset.name)
+    else omakeSet.delete(cb.dataset.name)
+  })
+  m.omakes = OMAKE_LIB.filter(id => omakeSet.has(String(id))).map(String)
+  // 相册（gallery：name 集合）
+  const galSet = new Set(String(m.gallery || []).split(',').filter(Boolean))
+  document.querySelectorAll('input[data-field="gallery"]').forEach(cb => {
+    if (cb.checked) galSet.add(cb.dataset.name)
+    else galSet.delete(cb.dataset.name)
+  })
+  m.gallery = GALLERY_LIB.map(g => g.name).filter(n => galSet.has(n))
+  // NG 场景（ngScene：name 集合）
+  const ngSet = new Set(String(m.ngScene || []).split(',').filter(Boolean))
+  document.querySelectorAll('input[data-field="ngscene"]').forEach(cb => {
+    if (cb.checked) ngSet.add(cb.dataset.name)
+    else ngSet.delete(cb.dataset.name)
+  })
+  m.ngScene = NGSCENE_LIB.map(g => g.name).filter(n => ngSet.has(n))
   // 变量（仅写回修改）
   const init = m.initialVars = m.initialVars || {}
   document.querySelectorAll('#var-table input').forEach(inp => {
@@ -1368,7 +1447,7 @@ $('new-create').onclick = async () => {
 }
 
 // ---------- 检查更新（GitHub Releases） ----------
-const APP_VERSION = '0.1.2'
+const APP_VERSION = '0.1.3'
 const UPDATE_REPO = 'moruacat/DC-SavaEditor'
 function versionCmp(a, b) {
   // a > b 返回 1，a < b 返回 -1，相等 0
@@ -1448,6 +1527,20 @@ function refreshStickerThumbs() {
     }).catch(() => {})
   })
 }
+// 刷新已渲染的附加内容缩略图（重新指定资源目录后）
+function refreshExtraThumbs() {
+  const base = 'data/image/collection_omake'
+  document.querySelectorAll('#sys-extra img.extra-img').forEach(img => {
+    const key = img.dataset.key
+    if (key == null) return
+    const p = document.querySelector(`#sys-extra input[data-name="${CSS.escape(key)}"]`)
+    if (!p) return
+    const dir = (p.dataset.field === 'gallery' ? 'gallery' : 'ng') + '/thumb'
+    window.api.readResource(`${base}/${dir}/${key}.webp`).then(d => {
+      if (d) img.src = d
+    }).catch(() => {})
+  })
+}
 $('btn-resource').onclick = async () => {
   const dir = await window.api.pickDir()
   if (dir) {
@@ -1455,7 +1548,8 @@ $('btn-resource').onclick = async () => {
     $('res-label').title = dir
     await window.api.addResourceRoot(dir) // 告知后端，读取资源时优先查该目录
     refreshStickerThumbs()
-    setStatus('资源目录已设置，贴纸预览已刷新')
+    refreshExtraThumbs()
+    setStatus('资源目录已设置，贴纸 / 附加内容预览已刷新')
   }
 }
 

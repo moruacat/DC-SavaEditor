@@ -147,6 +147,54 @@ const ROLE_LIB = [
   'マネコ', 'D・Red', 'ハーデスター', 'デカでび', 'ココヨ', 'ザッス',
 ]
 
+// 附加内容 —— 剧场（omakes）：sf.omakes 存放已解锁剧场结局的编号（字符串）
+// 对应 ENDINGS 中的 id（来源: omake.js dc.gekizyouNumbers）
+const OMAKE_LIB = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 31, 32, 33, 38, 39, 40, 41, 42, 43, 44]
+
+// 附加内容 —— 相册（gallery）：sf.gallery 存放已解锁相册项 name
+const GALLERY_LIB = [
+  { name: 'kupya_kaisou', title: '库皮亚多艾露的过去' },
+  { name: 'JU', title: '茱艾莉萍克的过去' },
+  { name: 'fuga_kaisou', title: '风雅的过去' },
+  { name: 'Lamia', title: '拉弥亚的创伤' },
+  { name: 'BBB_1', title: 'BBB的心象' },
+  { name: 'BBB_2', title: '忘却一切' },
+  { name: 'DE', title: '前日谈' },
+  { name: 'me', title: '德比伦的走马灯' },
+  { name: 'kaisou', title: '德比伦的回忆' },
+  { name: 'end', title: 'True Ending' },
+  { name: 'BBB_3', title: 'BBB的过往' },
+  { name: 'NA', title: '纳扎尔的心象' },
+  { name: 'yume', title: '沉溺梦境的召唤师' },
+  { name: 'ma', title: '玛喵的过去1' },
+  { name: 'D', title: '堕天使路西法' },
+  { name: 'pa', title: '睡衣派对' },
+  { name: 'geki', title: '库皮哒呀剧场SP' },
+  { name: 'debi', title: '德比伦的梦' },
+  { name: 'NISU', title: '于堕乐园……' },
+  { name: 'amo', title: '阿莫与路西' },
+  { name: 'mane', title: '玛喵的过去2' },
+  { name: 'DR', title: 'D・Red的回归' },
+  { name: 'BBB', title: '布布的邀约' },
+]
+
+// 附加内容 —— NG场景（ngScene）：sf.ngScene 存放已解锁场景 name
+const NGSCENE_LIB = [
+  { name: 'geki', title: '库皮哒呀小剧场SP', cond: '看完所有库皮哒呀小剧场解锁' },
+  { name: 'yume_kupya', title: '【彼时……】库皮亚多艾露的梦（？）', cond: '收集完所有结局解锁' },
+  { name: 'yume_debi', title: '【彼时……】德比伦的梦', cond: '收集完所有角色解锁' },
+  { name: 'neodebi', title: '【未使用场景】敏感度良好……！？', cond: '魔力收集到6666%以上解锁' },
+  { name: 'koumori', title: '【后日谈】礼物', cond: '通关真结局后解锁' },
+  { name: 'BBB', title: '【过去篇】于堕乐园……', cond: '通关后日谈后解锁' },
+  { name: 'amo', title: '【彼时……】阿莫与路西', cond: '通关后日谈后解锁' },
+  { name: 'naza', title: '【彼时……】德比与利维', cond: '通关后日谈后解锁' },
+  { name: 'mane', title: '【过去篇】玛喵的过去', cond: '通关后日谈后解锁' },
+  { name: 'DR', title: '【彼时……】D・Red的回归', cond: '通关后日谈后解锁' },
+  { name: 'hade', title: '【未使用场景】迫不及待……', cond: '通关后日谈后解锁' },
+  { name: 'debi', title: '【过去篇】布布的邀约', cond: '通关后日谈后解锁' },
+]
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ENDINGS, STICKERS, SF_FIELDS, VAR_INFO, VAR_GROUPS, ROLE_LIB }
+  module.exports = { ENDINGS, STICKERS, SF_FIELDS, VAR_INFO, VAR_GROUPS, ROLE_LIB, OMAKE_LIB, GALLERY_LIB, NGSCENE_LIB }
 }

@@ -376,6 +376,26 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 }
 .rolepedia label:hover { background: var(--surface-container-low); }
 
+/* 附加内容图鉴 */
+.extra-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 12px; padding-bottom: 12px; }
+.extra-grid label {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: pointer;
+  border-radius: var(--r-sm); transition: background .15s ease;
+  animation: flyIn .3s ease both; animation-delay: var(--i-delay, 0ms);
+}
+.extra-grid label:hover { background: var(--surface-container-low); }
+.extra-grid label.with-img {
+  flex-direction: column; align-items: center; gap: 8px; padding: 10px;
+  border: 1px solid var(--border-soft); border-radius: var(--r-lg);
+  background: var(--card-bg); box-shadow: var(--e1);
+  transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease;
+}
+.extra-grid label.with-img:hover { background: var(--card-bg); border-color: var(--primary); box-shadow: var(--e2); transform: translateY(-2px); }
+.extra-grid .extra-img { width: 120px; height: 120px; object-fit: contain; border-radius: var(--r-sm); display: block; }
+.extra-grid .meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.extra-grid .id { color: var(--muted); font-size: 11px; width: 26px; }
+.extra-grid .name { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- 照片网格 ---------- */
 .grid { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; overflow-y: auto; padding-bottom: 12px; }
 .grid .card {
