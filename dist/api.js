@@ -13,6 +13,7 @@
       pickDir: () => window.__TAURI__.core.invoke('pick_dir'),
       defaultStorage: () => window.__TAURI__.core.invoke('default_storage_dir'),
       resourceRoots: () => window.__TAURI__.core.invoke('resource_roots_cmd'),
+      addResourceRoot: dir => window.__TAURI__.core.invoke('add_resource_root', { dir }),
     }
   } else if (window.electronAPI) {
     // ---------- Electron 后端（由 preload.js 通过 contextBridge 注入） ----------

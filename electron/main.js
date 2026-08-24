@@ -22,8 +22,11 @@ function resourceRoots() {
   return [...roots]
 }
 
+// 用户通过界面「资源目录」额外指定的根目录，读取资源时优先查找
+let userResourceRoots = []
+
 function findResource(relPath) {
-  for (const root of resourceRoots()) {
+  for (const root of [...userResourceRoots, ...resourceRoots()]) {
     const p = path.join(root, relPath)
     try {
       if (fs.statSync(p).isFile()) return p
@@ -154,3 +157,9 @@ ipcMain.handle('fs:defaultStorage', () => defaultStorageDir())
 
 // 候选资源根目录
 ipcMain.handle('res:roots', () => resourceRoots())
+
+// 追加用户指定资源目录
+ipcMain.handle('res:addRoot', (_e, dir) => {
+  if (dir && !userResourceRoots.includes(dir)) userResourceRoots.push(dir)
+  return userResourceRoots
+})

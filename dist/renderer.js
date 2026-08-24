@@ -361,6 +361,7 @@ function renderSystem() {
     si++
     // 贴纸缩略图预览（从游戏资源 data/image/photo/sticker/<id>.png 提取）
     const img = el('img', 'stick-img')
+    img.dataset.sid = sid // 供刷新预览用
     window.api.readResource('data/image/photo/sticker/' + sid + '.png').then(d => {
       if (d) img.src = d
     }).catch(() => {})
@@ -602,7 +603,7 @@ function initTabButtons() {
 
 // ================= 槽位存档 =================
 const SLOT_HINT =
-  '<b>槽位存档</b>（DevilConnection_tyrano_data.sav）包含游戏内手动存档的全部槽位（30 个）。' +
+  '<b>槽位存档</b>（DevilConnection_tyrano_data.sav）包含游戏内手动存档的全部槽位（数量动态增长，最多 600）。' +
   '左侧选择槽位，右侧编辑元信息与 <b>stat.f</b> 变量表；' +
   '召唤师名字实际存储在 <b>stat.f.name</b>，需在此处修改（系统存档 initialVars.name 为初始默认值）。' +
   '修改后点击顶部「保存」写回原文件。'
@@ -849,11 +850,24 @@ $('btn-open').onclick = async () => {
 }
 $('btn-refresh').onclick = async () => { if (S.dir) await openDir(S.dir) }
 $('btn-save').onclick = saveAll
+// 刷新已渲染的贴纸缩略图（用于重新指定资源目录后）
+function refreshStickerThumbs() {
+  document.querySelectorAll('#stick-grid img').forEach(img => {
+    const sid = img.dataset.sid
+    if (sid == null) return
+    window.api.readResource('data/image/photo/sticker/' + sid + '.png').then(d => {
+      if (d) img.src = d
+    }).catch(() => {})
+  })
+}
 $('btn-resource').onclick = async () => {
   const dir = await window.api.pickDir()
   if (dir) {
     $('res-label').textContent = dir
     $('res-label').title = dir
+    await window.api.addResourceRoot(dir) // 告知后端，读取资源时优先查该目录
+    refreshStickerThumbs()
+    setStatus('资源目录已设置，贴纸预览已刷新')
   }
 }
 $('modal-close').onclick = () => $('modal').classList.add('hidden')

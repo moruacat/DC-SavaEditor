@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickDir: () => ipcRenderer.invoke('fs:pickDir'),
   defaultStorage: () => ipcRenderer.invoke('fs:defaultStorage'),
   resourceRoots: () => ipcRenderer.invoke('res:roots'),
+  addResourceRoot: dir => ipcRenderer.invoke('res:addRoot', dir),
 })

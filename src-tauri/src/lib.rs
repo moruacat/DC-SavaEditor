@@ -3,7 +3,11 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use serde_json::json;
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
 use tauri_plugin_dialog::DialogExt;
+
+// 用户通过界面「资源目录」额外指定的根目录，读取资源时优先查找
+static USER_ROOTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 // 列出目录内容，返回 JSON 字符串: [{"name","dir","size","mtime","full"}, ...]
 #[tauri::command]
@@ -69,28 +73,52 @@ fn resource_roots_cmd() -> Vec<String> {
     resource_roots()
 }
 
+// 用户指定资源目录（界面「资源目录」按钮）
+#[tauri::command]
+fn add_resource_root(dir: String) {
+    let mut v = USER_ROOTS.lock().unwrap();
+    if !v.contains(&dir) {
+        v.push(dir);
+    }
+}
+
+// 将文件读为 dataURL
+fn file_to_data_url(p: &Path, rel: &str) -> Option<String> {
+    let data = fs::read(p).ok()?;
+    let ext = Path::new(rel)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "svg" => "image/svg+xml",
+        _ => "application/octet-stream",
+    };
+    Some(format!("data:{};base64,{}", mime, BASE64.encode(data)))
+}
+
 // 从游戏资源读取文件，返回 dataURL
 fn read_resource_impl(rel: &str) -> Option<String> {
+    // 优先查用户「资源目录」指定的根
+    if let Ok(roots) = USER_ROOTS.lock() {
+        for root in roots.iter() {
+            let p = format!("{}/{}", root, rel);
+            if Path::new(&p).is_file() {
+                return file_to_data_url(Path::new(&p), rel);
+            }
+        }
+    }
+    // 再查候选资源根目录
     for root in resource_roots() {
         let p = format!("{}/{}", root, rel);
         if !Path::new(&p).is_file() {
             continue;
         }
-        let data = fs::read(&p).ok()?;
-        let ext = Path::new(rel)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-        let mime = match ext.as_str() {
-            "png" => "image/png",
-            "jpg" | "jpeg" => "image/jpeg",
-            "webp" => "image/webp",
-            "gif" => "image/gif",
-            "svg" => "image/svg+xml",
-            _ => "application/octet-stream",
-        };
-        return Some(format!("data:{};base64,{}", mime, BASE64.encode(data)));
+        return file_to_data_url(Path::new(&p), rel);
     }
     None
 }
@@ -170,6 +198,7 @@ pub fn run() {
             write_text,
             read_resource,
             resource_roots_cmd,
+            add_resource_root,
             default_storage_dir,
             save_data_url,
             save_image_dialog,
