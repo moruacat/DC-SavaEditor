@@ -1021,15 +1021,22 @@ function showToast(msg, type) {
   toastTimer = setTimeout(() => { t.className = 'toast hidden' }, 2200)
 }
 
-// 文本域自动增高：编辑时随内容变高（动画），失焦收起回单行
+// 文本域自动增高：展开/收起都带 height 过渡动画
 function bindAutoGrow(ta) {
+  const curH = () => ta.getBoundingClientRect().height
   const grow = () => {
+    const from = curH()
     ta.style.height = 'auto'
-    ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px'
+    const target = Math.min(ta.scrollHeight + 2, 220)
+    ta.style.height = from + 'px' // 固定到当前确定值
+    void ta.offsetHeight // 强制 reflow，以当前高度作为过渡起点
+    ta.style.height = target + 'px' // 触发 height 过渡 → 展开动画
   }
   const collapse = () => {
-    // 明确设为单行像素高，触发 CSS height 过渡 → 收起动画
-    ta.style.height = '32px'
+    const from = curH()
+    ta.style.height = from + 'px'
+    void ta.offsetHeight
+    ta.style.height = '32px' // 单行目标，触发 height 过渡 → 收起动画
   }
   ta.addEventListener('focus', grow)
   ta.addEventListener('input', grow)
