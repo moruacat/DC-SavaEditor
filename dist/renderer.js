@@ -1021,22 +1021,29 @@ function showToast(msg, type) {
   toastTimer = setTimeout(() => { t.className = 'toast hidden' }, 2200)
 }
 
-// 文本域自动增高：展开/收起都带 height 过渡动画
+// 文本域自动增高：展开最多 4 行（超出滚动），收起回单行；带 height 过渡动画
 function bindAutoGrow(ta) {
+  const cs = getComputedStyle(ta)
+  const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4
+  const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+  const oneLine = Math.round(lh + pad) // 单行
+  const fourLine = Math.round(lh * 4 + pad) // 4 行
   const curH = () => ta.getBoundingClientRect().height
   const grow = () => {
     const from = curH()
+    ta.style.overflow = 'auto' // 超过 4 行后出现滚动条
     ta.style.height = 'auto'
-    const target = Math.min(ta.scrollHeight + 2, 220)
-    ta.style.height = from + 'px' // 固定到当前确定值
-    void ta.offsetHeight // 强制 reflow，以当前高度作为过渡起点
-    ta.style.height = target + 'px' // 触发 height 过渡 → 展开动画
+    const target = Math.min(ta.scrollHeight, fourLine)
+    ta.style.height = from + 'px' // 固定当前作为过渡起点
+    void ta.offsetHeight
+    ta.style.height = target + 'px' // 触发 height 过渡
   }
   const collapse = () => {
     const from = curH()
     ta.style.height = from + 'px'
     void ta.offsetHeight
-    ta.style.height = '32px' // 单行目标，触发 height 过渡 → 收起动画
+    ta.style.height = oneLine + 'px' // 收起回单行
+    ta.style.overflow = 'hidden' // 收回后单行截断，不显示滚动条
   }
   ta.addEventListener('focus', grow)
   ta.addEventListener('input', grow)
