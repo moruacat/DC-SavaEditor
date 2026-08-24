@@ -55,6 +55,8 @@ async function openDir(dir) {
   S.slots = null
   S.dirty.clear()
   S.activeEntry = null
+  photoSel.clear()
+  photoMulti = false
   $('path-label').textContent = dir
   $('path-label').title = dir
 
@@ -209,13 +211,18 @@ function showEmptyHint(v) {
 }
 
 // ================= 照片预览 =================
+let photoMulti = false // 是否处于多选模式
+const photoSel = new Map() // idx -> photo
 function renderPhotos() {
   const grid = $('photo-grid')
   grid.innerHTML = ''
   $('photo-count').textContent = `${S.photos.length} 张`
   S.photos.forEach((p, i) => {
     const card = el('div', 'card')
+    card.dataset.i = i
     card.style.setProperty('--i-delay', Math.min(i * 35, 600) + 'ms') // 有序飞入
+    if (photoSel.has(i)) card.classList.add('selected')
+    applySelNum(card)
     const img = el('img')
     img.alt = p.id
     if (p.thumb) {
@@ -223,9 +230,44 @@ function renderPhotos() {
     }
     card.appendChild(img)
     card.appendChild(el('div', 'cap', (p.date || '') + '  ' + p.id))
-    card.addEventListener('click', () => openPhotoModal(p))
+    card.addEventListener('click', () => {
+      if (photoMulti) togglePhotoSel(i, card)
+      else openPhotoModal(p)
+    })
     grid.appendChild(card)
   })
+  updateSelUi()
+}
+function applySelNum(card) {
+  const i = +card.dataset.i
+  card.dataset.num = photoSel.has(i) ? [...photoSel.keys()].indexOf(i) + 1 : ''
+}
+function togglePhotoSel(i, card) {
+  if (photoSel.has(i)) photoSel.delete(i)
+  else photoSel.set(i, S.photos[i])
+  card.classList.toggle('selected', photoSel.has(i))
+  // 重算序号
+  const grid = $('photo-grid')
+  ;[...grid.children].forEach(c => applySelNum(c))
+  updateSelUi()
+}
+function updateSelUi() {
+  const sel = photoSel.size
+  $('sel-count').textContent = sel ? `已选 ${sel} 张` : ''
+  $('sel-count').style.display = photoMulti ? '' : 'none'
+  $('btn-export-sel').style.display = photoMulti ? '' : 'none'
+  $('btn-del-sel').style.display = photoMulti ? '' : 'none'
+  $('btn-cancel-sel').style.display = photoMulti ? '' : 'none'
+  $('btn-del-sel').disabled = sel === 0
+  $('btn-export-sel').disabled = sel === 0
+}
+function exitPhotoMulti() {
+  photoMulti = false
+  photoSel.clear()
+  const grid = $('photo-grid')
+  ;[...grid.children].forEach(c => { c.classList.remove('selected'); c.dataset.num = '' })
+  $('btn-select').textContent = '☑ 多选'
+  updateSelUi()
 }
 
 async function loadThumb(path) {
@@ -1205,15 +1247,15 @@ $('btn-resource').onclick = async () => {
   }
 }
 
-// 批量导出全部照片到所选目录
-$('btn-batch-export').onclick = async () => {
-  if (!S.photos.length) { showToast('没有可导出的照片', 'error'); return }
+// 导出照片列表到所选目录，返回 {ok, fail}
+async function exportPhotoList(list, done) {
+  if (!list.length) { showToast('没有可导出的照片', 'error'); return }
   const dir = await window.api.pickDir()
   if (!dir) return
-  showToast(`导出中（0/${S.photos.length}）…`, 'busy')
+  showToast(`导出中（0/${list.length}）…`, 'busy')
   let ok = 0, fail = 0
-  for (let i = 0; i < S.photos.length; i++) {
-    const p = S.photos[i]
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i]
     try {
       const path = p.full || p.thumb
       if (!path) { fail++; continue }
@@ -1222,11 +1264,44 @@ $('btn-batch-export').onclick = async () => {
       const r = await window.api.saveDataUrl(dest, dataUrl)
       if (r) ok++; else fail++
     } catch (_) { fail++ }
-    if ((i + 1) % 5 === 0 || i === S.photos.length - 1) showToast(`导出中（${i + 1}/${S.photos.length}）…`, 'busy')
+    if ((i + 1) % 5 === 0 || i === list.length - 1) showToast(`导出中（${i + 1}/${list.length}）…`, 'busy')
   }
   showToast(fail ? `完成：成功 ${ok}，失败 ${fail}` : `成功导出 ${ok} 张`, fail ? 'error' : 'success')
-  setStatus(`批量导出完成：成功 ${ok} 张，失败 ${fail} 张 → ${dir}`)
+  setStatus(`照片导出完成：成功 ${ok} 张，失败 ${fail} 张 → ${dir}`)
+  if (done) done()
 }
+
+// 全部导出
+$('btn-batch-export').onclick = () => { if (!S.photos.length) showToast('没有可导出的照片', 'error'); else exportPhotoList(S.photos) }
+
+// 多选：进入/退出
+$('btn-select').onclick = () => {
+  photoMulti = !photoMulti
+  $('btn-select').textContent = photoMulti ? '☑ 退出多选' : '☑ 多选'
+  if (!photoMulti) { photoSel.clear(); const g = $('photo-grid'); ;[...g.children].forEach(c => { c.classList.remove('selected'); c.dataset.num = '' }) }
+  updateSelUi()
+}
+// 多选：导出选中
+$('btn-export-sel').onclick = () => exportPhotoList([...photoSel.values()], () => { /* 保持多选态 */ })
+// 多选：删除选中
+$('btn-del-sel').onclick = async () => {
+  const list = [...photoSel.values()]
+  if (!list.length) { showToast('未选中照片', 'error'); return }
+  if (!confirm(`确定删除选中的 ${list.length} 张照片存档？`)) return
+  let ok = 0
+  for (const p of list) {
+    let removed = false
+    if (p.full) { removed = (await window.api.delFile(p.full)) || removed }
+    if (p.thumb) { removed = (await window.api.delFile(p.thumb)) || removed }
+    if (removed) ok++
+  }
+  showToast(`已删除 ${ok} 张`, ok ? 'success' : 'error')
+  exitPhotoMulti()
+  await openDir(S.dir)
+}
+// 多选：完成
+$('btn-cancel-sel').onclick = exitPhotoMulti
+
 function sanitizeFileName(n) { return String(n).replace(/[\\/:*?"<>|]/g, '_') }
 $('modal-close').onclick = () => $('modal').classList.add('hidden')
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden') })

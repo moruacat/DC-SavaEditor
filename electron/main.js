@@ -174,6 +174,12 @@ ipcMain.handle('res:addRoot', (_e, dir) => {
   return userResourceRoots
 })
 
+// 删除文件（照片删除用）
+ipcMain.handle('fs:delFile', (_e, p) => {
+  try { fs.unlinkSync(p) } catch (_) {}
+  return true
+})
+
 // 导出文本（明文 JSON）到保存对话框
 ipcMain.handle('fs:saveText', async (_e, content, defaultName) => {
   const { canceled, filePath } = await dialog.showSaveDialog(win, {

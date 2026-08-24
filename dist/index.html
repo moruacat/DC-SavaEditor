@@ -46,8 +46,13 @@
           <div class="panel-head">
             <h3>游戏照片</h3>
             <span id="photo-count" class="count"></span>
+            <span id="sel-count" class="count" style="display:none"></span>
             <span style="flex:1"></span>
-            <button id="btn-batch-export" class="btn" title="把全部照片导出到所选目录为 PNG">⬇ 批量导出</button>
+            <button id="btn-batch-export" class="btn" title="把全部照片导出到所选目录为 PNG">⬇ 全部导出</button>
+            <button id="btn-select" class="btn" title="进入多选：点选照片后可导出/删除">☑ 多选</button>
+            <button id="btn-export-sel" class="btn" title="导出选中的照片" style="display:none">导出选中</button>
+            <button id="btn-del-sel" class="btn danger" title="删除选中的照片存档" style="display:none">删除选中</button>
+            <button id="btn-cancel-sel" class="btn" title="退出多选" style="display:none">完成</button>
           </div>
           <div id="photo-grid" class="grid"></div>
         </div>

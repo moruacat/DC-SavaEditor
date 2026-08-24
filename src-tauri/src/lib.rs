@@ -283,6 +283,16 @@ fn restore_storage(storage_dir: String, backup_name: String) -> Result<bool, Str
     Ok(true)
 }
 
+// 删除文件（照片删除用）
+#[tauri::command]
+fn delete_file(path: String) -> Result<bool, String> {
+    let path = path.strip_prefix("file://").unwrap_or(&path);
+    match fs::remove_file(path) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false), // 不存在也视为成功删干净
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -302,7 +312,8 @@ pub fn run() {
             open_text_dialog,
             backup_storage,
             list_backups,
-            restore_storage
+            restore_storage,
+            delete_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
