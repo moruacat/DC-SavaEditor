@@ -18,6 +18,7 @@
     <span class="spacer"></span>
     <button id="btn-backup" class="btn" title="备份整个存档文件夹到 backup/">🗜 备份</button>
     <button id="btn-restore" class="btn" title="从 backup/ 还原存档">↩ 还原</button>
+    <button id="btn-new" class="btn" title="新建空白存档（损坏存档重建用）">➕ 新建</button>
     <button id="btn-export" class="btn" title="解码并导出当前系统存档为明文 JSON">⬇ 导出</button>
     <button id="btn-import" class="btn" title="导入明文 JSON 并载入系统存档">⬆ 导入</button>
     <button id="btn-theme" class="btn" title="切换深色/浅色模式">🌙 深色</button>
@@ -136,6 +137,31 @@
     <div class="modal-box" style="width:420px;max-width:92vw">
       <div class="modal-bar"><span>从备份还原</span><button id="restore-close" class="btn">关闭</button></div>
       <div class="modal-body"><div id="restore-list"></div></div>
+    </div>
+  </div>
+
+  <!-- 新建存档模态 -->
+  <div id="new-modal" class="modal hidden">
+    <div class="modal-box" style="width:400px;max-width:92vw">
+      <div class="modal-bar"><span>新建空白存档</span><button id="new-close" class="btn">关闭</button></div>
+      <div class="modal-body">
+        <div class="form-grid" style="grid-template-columns:1fr">
+          <div class="field" style="align-items:flex-start;flex-direction:column;gap:4px">
+            <label style="min-width:0;text-align:left">类型</label>
+            <select id="new-type" style="width:100%">
+              <option value="system">系统存档（DevilConnection_sf.sav）</option>
+              <option value="slots">槽位存档（DevilConnection_tyrano_data.sav）</option>
+              <option value="quick">快速存档（DevilConnection_tyrano_quick_save.sav）</option>
+            </select>
+          </div>
+          <div class="field" id="new-slotnum-row" style="display:none;flex-direction:column;gap:4px;align-items:flex-start">
+            <label style="min-width:0;text-align:left">空槽位数（游戏默认为 5）</label>
+            <input id="new-slotnum" type="number" value="5" min="1" max="600" style="width:100%">
+          </div>
+        </div>
+        <div class="hint" style="margin:10px 0 0">创建空白存档供你按记忆重填（名字、结局、贴纸等）。同名文件已存在时会提示确认覆盖，建议先「备份」。</div>
+      </div>
+      <div class="modal-bar" style="justify-content:flex-end"><button id="new-create" class="btn primary">创建</button></div>
     </div>
   </div>
 

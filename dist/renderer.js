@@ -1155,6 +1155,65 @@ $('btn-restore').onclick = async () => {
 }
 $('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
 
+// ---------- 新建空白存档（损坏重建） ----------
+const NEW_SAVE_FILES = {
+  system: 'DevilConnection_sf.sav',
+  slots: 'DevilConnection_tyrano_data.sav',
+  quick: 'DevilConnection_tyrano_quick_save.sav',
+}
+function buildNewSaveObj(type, slotNum) {
+  if (type === 'system') {
+    return {
+      initialVars: {},
+      endings: [],
+      collectedEndings: [],
+      sticker: [],
+      judgeCounts: {},
+      omakes: [],
+      characters: [],
+      collectedCharacters: [],
+      gallery: [],
+      ngScene: [],
+    }
+  }
+  if (type === 'slots') {
+    const n = Math.max(1, Math.min(600, slotNum || 5))
+    const empty = { title: 'NO SAVE', current_order_index: 0, save_date: '', img_data: '', phase_file: '', stat: {} }
+    return { kind: 'save', hash: '', data: Array.from({ length: n }, () => JSON.parse(JSON.stringify(empty))) }
+  }
+  // quick / auto：单存档对象
+  return { title: 'QUICK SAVE', current_order_index: 0, save_date: '', img_data: '', phase_file: '', stat: { f: {} } }
+}
+$('btn-new').onclick = () => {
+  if (!S.dir) { showToast('请先打开存档文件夹', 'error'); return }
+  $('new-slotnum-row').style.display = $('new-type').value === 'slots' ? '' : 'none'
+  $('new-modal').classList.remove('hidden')
+}
+$('new-close').onclick = () => $('new-modal').classList.add('hidden')
+$('new-type').onchange = () => { $('new-slotnum-row').style.display = $('new-type').value === 'slots' ? '' : 'none' }
+$('new-create').onclick = async () => {
+  if (!S.dir) return
+  const type = $('new-type').value
+  const fname = NEW_SAVE_FILES[type]
+  const full = S.dir + '/' + fname
+  // 已存在则确认覆盖
+  const entries = await window.api.listDir(S.dir)
+  if (entries.some(e => !e.dir && e.name === fname)) {
+    if (!confirm(`文件 ${fname} 已存在，确定覆盖？强烈建议先「备份」再操作。`)) return
+  }
+  const obj = buildNewSaveObj(type, parseInt($('new-slotnum').value, 10))
+  await window.api.writeText(full, encodeSave(obj))
+  $('new-modal').classList.add('hidden')
+  showToast('已创建空白存档', 'success')
+  // 刷新并自动载入
+  await openDir(S.dir)
+  const text = await window.api.readText(full)
+  const o = decodeSave(text)
+  if (type === 'system') loadSystem(full, o)
+  else if (type === 'slots') loadSlots(full, o)
+  else loadSingle(full, o)
+}
+
 // ---------- 检查更新（GitHub Releases） ----------
 const APP_VERSION = '0.1.2'
 const UPDATE_REPO = 'moruacat/DC-SavaEditor'
