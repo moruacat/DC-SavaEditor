@@ -162,6 +162,27 @@
             <label style="min-width:0;text-align:left">空槽位数（游戏默认为 5）</label>
             <input id="new-slotnum" type="number" value="5" min="1" max="600" style="width:100%">
           </div>
+          <div id="new-keys" style="display:none;flex-direction:column;gap:10px;margin-top:4px;border-top:1px solid var(--border-soft);padding-top:10px">
+            <div style="font-weight:600;color:var(--text);font-size:13px">关键进度（写入系统存档）</div>
+            <div class="field" style="flex-direction:column;gap:4px;align-items:flex-start">
+              <label style="min-width:0;text-align:left">周目数（loopCount）</label>
+              <input id="new-loop" type="number" value="1" min="0" max="999" style="width:100%">
+            </div>
+            <div class="field" style="flex-direction:column;gap:4px;align-items:flex-start">
+              <label style="min-width:0;text-align:left">累计魔力（wholeTotalMP）</label>
+              <input id="new-mp" type="number" value="0" min="0" style="width:100%">
+            </div>
+            <div class="field" style="flex-direction:column;gap:4px;align-items:flex-start">
+              <label style="min-width:0;text-align:left">召唤师名字（initialVars.name）</label>
+              <input id="new-name" type="text" placeholder="按记忆填写" style="width:100%">
+            </div>
+            <div class="field" style="flex-direction:row;align-items:center">
+              <label style="min-width:0;text-align:left;flex:1">全解锁结局 / 全收集贴纸</label>
+              <label><input type="checkbox" id="new-full-end"> 结局</label>
+              <label><input type="checkbox" id="new-full-stick"> 贴纸</label>
+            </div>
+            <div class="hint" style="margin:0">提示：第X天、对话角色(chara)、第X段对话(script/phrase)属于<b>槽位存档</b>的 stat.f，请到「槽位存档」面板按记忆填写。</div>
+          </div>
         </div>
         <div class="hint" style="margin:10px 0 0">创建空白存档供你按记忆重填（名字、结局、贴纸等）。同名文件已存在时会提示确认覆盖，建议先「备份」。</div>
       </div>

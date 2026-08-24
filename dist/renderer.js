@@ -1167,11 +1167,22 @@ const NEW_SAVE_FILES = {
 }
 function buildNewSaveObj(type, slotNum) {
   if (type === 'system') {
+    const loop = Math.max(0, parseInt($('new-loop').value, 10) || 0)
+    const mp = Math.max(0, parseInt($('new-mp').value, 10) || 0)
+    const name = ($('new-name').value || '').trim()
+    const fullEnd = $('new-full-end').checked
+    const fullStick = $('new-full-stick').checked
     return {
-      initialVars: {},
-      endings: [],
-      collectedEndings: [],
-      sticker: [],
+      loopCount: loop,
+      totalLoopCount: loop,
+      wholeTotalMP: mp,
+      trueCount: 0,
+      NEO: false,
+      kill: 0,
+      initialVars: name ? { name } : {},
+      endings: fullEnd ? allEndIds() : [],
+      collectedEndings: fullEnd ? allEndIds() : [],
+      sticker: fullStick ? allStickIds().map(Number) : [],
       judgeCounts: {},
       omakes: [],
       characters: [],
@@ -1193,11 +1204,18 @@ function buildNewSaveObj(type, slotNum) {
 }
 $('btn-new').onclick = () => {
   if (!S.dir) { showToast('请先打开存档文件夹', 'error'); return }
-  $('new-slotnum-row').style.display = $('new-type').value === 'slots' ? '' : 'none'
+  syncNewKeyFields()
   $('new-modal').classList.remove('hidden')
 }
 $('new-close').onclick = () => $('new-modal').classList.add('hidden')
-$('new-type').onchange = () => { $('new-slotnum-row').style.display = $('new-type').value === 'slots' ? '' : 'none' }
+function syncNewKeyFields() {
+  const t = $('new-type').value
+  $('new-slotnum-row').style.display = t === 'slots' ? '' : 'none'
+  $('new-keys').style.display = t === 'system' ? 'flex' : 'none'
+}
+$('new-type').onchange = syncNewKeyFields
+function allEndIds() { return Object.keys(ENDINGS).filter(k => !isNaN(+k)).sort((a, b) => +a - +b) }
+function allStickIds() { return Object.keys(STICKERS).filter(k => !isNaN(+k)).sort((a, b) => +a - +b) }
 $('new-create').onclick = async () => {
   if (!S.dir) return
   const type = $('new-type').value
