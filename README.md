@@ -2,6 +2,14 @@
 
 为《でびるコネクション》(Devil Connection) 游戏制作的存档编辑器，支持 **Tauri** 与 **Electron** 双平台运行，一套前端两套壳。
 
+## 软件展示
+
+| | |
+|:---:|:---:|
+| ![截图1](docs/screenshots/screenshot-1.png) | ![截图2](docs/screenshots/screenshot-2.png) |
+| ![截图3](docs/screenshots/screenshot-3.png) | ![截图4](docs/screenshots/screenshot-4.png) |
+| ![截图5](docs/screenshots/screenshot-5.png) | |
+
 ## 快速开始
 - **注意**!本软件仅在1.0版本测试过，可能有兼容性问题
 - **安装**：下载安装包，根据安装器指引安装到游戏目录下的任意空文件夹
