@@ -25,6 +25,8 @@ const S = {
   currentSlotIdx: 0,
   dirty: new Set(),  // 需要写回的文件路径
   activeEntry: null,
+  unsaved: false,       // 是否存在未保存的编辑（用于切换/刷新前提醒）
+  jsonDirty: false,     // JSON 编辑器是否有未「应用」的改动
 }
 
 // ================= DOM 快捷 =================
@@ -55,6 +57,8 @@ async function openDir(dir) {
   S.slots = null
   S.dirty.clear()
   S.activeEntry = null
+  S.unsaved = false
+  S.jsonDirty = false
   photoSel.clear()
   photoMulti = false
   $('path-label').textContent = dir
@@ -226,7 +230,7 @@ function renderPhotos() {
     const img = el('img')
     img.alt = p.id
     if (p.thumb) {
-      loadThumb(p.thumb).then(d => { if (img.src !== d) img.src = d })
+      loadThumb(p.thumb).then(d => { if (d && img.src !== d) img.src = d }).catch(() => {})
     }
     card.appendChild(img)
     card.appendChild(el('div', 'cap', (p.date || '') + '  ' + p.id))
@@ -272,10 +276,13 @@ function exitPhotoMulti() {
 
 async function loadThumb(path) {
   const text = await window.api.readText(path)
+  if (!text) return '' // 读不到（损坏/为空）时返回空串，避免 decode 抛异常
   return decodeSave(text) // 照片/缩略图存档顶层就是 dataURL 字符串
 }
 
+let photoModalReq = 0 // 大图模态请求序号：切换照片时让旧的异步读取结果作废，避免竞态覆盖
 function openPhotoModal(p) {
+  const req = ++photoModalReq
   $('modal-title').textContent = `照片 ${p.id}${p.date ? ' · ' + p.date : ''}`
   const img = $('modal-img')
   img.src = ''
@@ -287,17 +294,22 @@ function openPhotoModal(p) {
   }
   // 优先加载完整图（较大），加载期间先显示缩略图
   if (p.thumb) {
-    loadThumb(p.thumb).then(d => { if (!img.src) img.src = d })
+    loadThumb(p.thumb).then(d => {
+      // 仍是最近一次打开且当前无图时才用缩略图占位
+      if (req === photoModalReq && !img.src && d) img.src = d
+    }).catch(() => {})
   }
   if (fullPath) {
     window.api.readText(fullPath).then(t => {
+      if (req !== photoModalReq) return // 已切换照片，丢弃过期结果
       img.src = decodeSave(t)
-    })
+    }).catch(() => {})
   }
 }
 
 // ================= 打开存档文件 =================
 async function openEntry(e, kind) {
+  if (!confirmDiscard()) return
   try {
     const text = await window.api.readText(e.full)
     const obj = decodeSave(text)
@@ -324,6 +336,8 @@ function loadSystem(path, obj) {
   S.system = { path, obj, orig: deepClone(obj) }
   S.activeEntry = { path, kind: 'system' }
   S.currentPanel = 'system'
+  S.unsaved = false
+  S.jsonDirty = false
   renderSystem()
   showPanel('system')
 }
@@ -467,6 +481,7 @@ function renderSystem() {
   renderVarTable($('var-table'), m.initialVars || {}, false)
   // JSON
   $('json-editor').value = JSON.stringify(m, null, 2)
+  S.jsonDirty = false
   // 概览圆形进度（结局收集 / 贴纸收集）
   renderOverviewProgress(m)
   // 自动判断全解锁 / 全收集
@@ -503,6 +518,16 @@ function renderSystem() {
   renderRoles()
   renderRolePedia()
   renderExtraPedia()
+  applyFanaticTheme()
+}
+
+// 狂信徒线（sf.kill≠0）自动套用「狂信徒主题」；深浅两套跟随 data-theme，
+// 主题按钮仍可正常切换深浅色（与狂信徒配色无关）
+function applyFanaticTheme() {
+  const kill = S.system && S.system.obj ? (Number(S.system.obj.kill) || 0) : 0
+  const doc = document.documentElement
+  if (kill !== 0) doc.dataset.fanatic = 'on'
+  else delete doc.dataset.fanatic
 }
 
 // ================= 角色图鉴（sf.collectedCharacters 勾选） =================
@@ -877,12 +902,16 @@ async function renderRoles() {
   if (!body || !sel) return
   const data = await ensureSlotData()
   if (!data) { body.innerHTML = '<div class="hint">未找到槽位存档（tyrano_data.sav），角色变量无法读取。请先打开含槽位存档的存档文件夹。</div>'; sel.innerHTML = ''; return }
-  // 填充槽位下拉
-  sel.innerHTML = data.map((s, i) => `<option value="${i}">${i + 1}. ${s.title || '(空)'}</option>`).join('')
+  // 填充槽位下拉（用 Option 构造，避免标题含 <>& 等破坏 HTML）
+  sel.innerHTML = ''
+  data.forEach((s, i) => {
+    sel.options.add(new Option(`${i + 1}. ${s.title || '(空)'}`, i))
+  })
   const idx = Math.min(Math.max(roleSlotIdx, 0), data.length - 1)
   roleSlotIdx = idx
   sel.value = idx
   renderRoleBody(data[idx])
+  updateFanaticUI()
 }
 function renderRoleBody(slot) {
   const body = $('role-body'); if (!body) return
@@ -916,25 +945,97 @@ function renderRoleBody(slot) {
   }
   if (!any) body.innerHTML = '<div class="hint">当前槽位 stat.f 未匹配到已知角色变量。</div>'
 }
+// 把角色面板编辑写回所选槽位 stat.f（仅内存，不落盘）。返回是否收集到改动。
+function flushRoleBody() {
+  if (!(S.slots && S.slots.obj && Array.isArray(S.slots.obj.data))) return false
+  const slot = S.slots.obj.data[roleSlotIdx]
+  if (!slot) return false
+  const inputs = document.querySelectorAll('#role-body input[data-var]')
+  if (!inputs.length) return false
+  slot.stat = slot.stat || {}; slot.stat.f = slot.stat.f || {}
+  inputs.forEach(inp => { slot.stat.f[inp.dataset.var] = parseVal(inp.value, inp.dataset.vtype) })
+  return true
+}
 // 保存角色面板：把编辑写回所选槽位 stat.f，并写回槽位存档文件
 $('role-save').onclick = async () => {
-  if (!(S.slots && S.slots.obj && Array.isArray(S.slots.obj.data))) { showToast('请先打开槽位存档', 'error'); return }
-  const data = S.slots.obj.data
+  // 只校验角色面板本身的整数字段（不牵连系统存档字段）
+  for (const inp of document.querySelectorAll('#role-body input[data-vtype="int"]')) {
+    const v = String(inp.value).trim()
+    if (v !== '' && !/^-?\d+$/.test(v)) { showToast(`「${inp.dataset.var}」只能填整数`, 'error'); return }
+  }
+  if (!flushRoleBody()) { showToast('请先打开槽位存档', 'error'); return }
+  await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+  showToast('角色变量已保存到槽位存档', 'success')
+  renderRoleBody(S.slots.obj.data[roleSlotIdx])
+  S.unsaved = false
+}
+// ================= 狂信徒线（隐藏路线，可手动开启/关闭） =================
+// 触发：槽位 stat.f.name 为特殊名 且 系统 sf.kill≠0（来源: scene1.ks *input_fanatic）
+const FANATIC_NAMES = ['狂信者', '悪魔狂信者', '崇拝者', '悪魔崇拝者', '恶魔狂信者', '崇拜者', '恶魔崇拜者']
+let fanaticBackup = null // { idx, name, kill } 用于取消时还原
+function isFanaticName(n) { return FANATIC_NAMES.includes(n) }
+async function updateFanaticUI() {
+  const sel = $('fanatic-name'), st = $('fanatic-state'), on = $('fanatic-on'), off = $('fanatic-off')
+  if (!sel || !st || !on || !off) return
+  if (!sel.options.length) FANATIC_NAMES.forEach(n => sel.appendChild(el('option', null, n)))
+  const sys = S.system && S.system.obj
+  const data = await ensureSlotData()
+  const slot = data && data[roleSlotIdx]
+  const name = (slot && slot.stat && slot.stat.f) ? slot.stat.f.name : ''
+  const kill = sys ? Number(sys.kill) : 0
+  if (isFanaticName(name) && kill !== 0) {
+    sel.value = name; st.textContent = '已激活（真·狂信徒路线）'
+    st.style.color = 'var(--danger, #e5533d)'; on.disabled = false; off.disabled = false
+  } else {
+    if (isFanaticName(name) && kill === 0) { st.textContent = '名字已设，但系统 sf.kill≠0 也未满足（请在「概览」设置）'; sel.value = name }
+    else if (kill !== 0 && name && !isFanaticName(name)) st.textContent = 'sf.kill≠0 但名字非狂信徒名'
+    else st.textContent = '未激活'
+    st.style.color = ''; on.disabled = false; off.disabled = true
+  }
+}
+$('fanatic-on').addEventListener('click', async () => {
+  const sys = S.system && S.system.obj
+  const data = await ensureSlotData()
+  if (!data) { showToast('请先打开槽位存档', 'error'); return }
+  if (!sys) { showToast('请先打开系统存档', 'error'); return }
   const idx = roleSlotIdx
   const slot = data[idx]
   if (!slot) { showToast('槽位不存在', 'error'); return }
   slot.stat = slot.stat || {}; slot.stat.f = slot.stat.f || {}
-  document.querySelectorAll('#role-body input[data-var]').forEach(inp => {
-    slot.stat.f[inp.dataset.var] = parseVal(inp.value, inp.dataset.vtype)
-  })
-  await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
-  showToast('角色变量已保存到槽位存档', 'success')
-  renderRoleBody(slot)
-}
+  const name = $('fanatic-name').value
+  // 仅在首次进入（或换槽位、当前未激活）时记录原始状态，避免连续点击覆盖备份导致取消不干净
+  if (!fanaticBackup || fanaticBackup.idx !== idx || Number(sys.kill) === 0) {
+    fanaticBackup = { idx, name: slot.stat.f.name, kill: sys.kill }
+  }
+  slot.stat.f.name = name
+  sys.kill = 1
+  const r1 = await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+  const r2 = await window.api.writeText(S.system.path, encodeSave(S.system.obj))
+  if (r1 && r2) { showToast('已切换到狂信徒线', 'success'); S.unsaved = false }
+  else showToast('写入失败（请确认已打开槽位与系统存档）', 'error')
+  updateNameHint(); updateFanaticUI(); applyFanaticTheme()
+})
+$('fanatic-off').addEventListener('click', async () => {
+  const sys = S.system && S.system.obj
+  const data = await ensureSlotData()
+  if (!data || !sys) return
+  const idx = roleSlotIdx
+  const slot = data[idx]
+  if (!slot) return
+  slot.stat = slot.stat || {}; slot.stat.f = slot.stat.f || {}
+  if (fanaticBackup && fanaticBackup.idx === idx) { slot.stat.f.name = fanaticBackup.name || ''; sys.kill = fanaticBackup.kill }
+  else { slot.stat.f.name = ''; sys.kill = 0 }
+  const r1 = await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+  const r2 = await window.api.writeText(S.system.path, encodeSave(S.system.obj))
+  if (r1 && r2) { showToast('已退出狂信徒线', 'success'); S.unsaved = false }
+  else showToast('写入失败', 'error')
+  fanaticBackup = null
+  updateNameHint(); updateFanaticUI(); applyFanaticTheme()
+})
 $('role-slot').addEventListener('change', e => {
   roleSlotIdx = +e.target.value
   const data = S.slots && S.slots.obj && S.slots.obj.data
-  if (data && data[roleSlotIdx]) renderRoleBody(data[roleSlotIdx])
+  if (data && data[roleSlotIdx]) { renderRoleBody(data[roleSlotIdx]); updateFanaticUI() }
 })
 
 // ================= 槽位存档 =================
@@ -1025,6 +1126,7 @@ function loadSlots(path, obj) {
   S.slots = { path, obj }
   S.activeEntry = { path, kind: 'slots' }
   S.currentPanel = 'slots'
+  S.unsaved = false
   renderSlotHint()
   renderSlotGrid()
   if (obj.data && obj.data.length) selectSlot(0)
@@ -1091,6 +1193,7 @@ function selectSlot(idx) {
 function loadSingle(path, obj) {
   S.slots = { path, obj, single: true }
   S.activeEntry = { path, kind: 'single' }
+  S.unsaved = false
   renderSlotHint()
   // 复用槽位视图
   const grid = $('slot-grid')
@@ -1236,22 +1339,74 @@ function collectSingleSlot(slot) {
   })
 }
 
-function saveAll() {
+// 当前系统面板子选项卡（直接读 DOM 活动态，避免与视觉状态漂移）
+function currentTab() {
+  const t = document.querySelector('#panel-system .tab.active')
+  return t ? t.dataset.tab : 'overview'
+}
+
+// 校验当前面板数值字段是否为整数；返回第一个非法字段名（无则 null）
+function validateIntFields() {
+  const sels = []
+  if (S.currentPanel === 'system') {
+    sels.push('#sf-fields input[type="text"]', '#judge-fields input', '#var-table input[data-vtype="int"]')
+    if (currentTab() === 'roles') sels.push('#role-body input[data-vtype="int"]')
+  } else {
+    sels.push('#slot-meta input[data-meta="current_order_index"]', '#slot-vars input[data-vtype="int"]')
+  }
+  for (const sel of sels) {
+    for (const inp of document.querySelectorAll(sel)) {
+      const v = String(inp.value).trim()
+      if (v === '') continue
+      if (!/^-?\d+$/.test(v)) return inp.dataset.var || inp.dataset.key || inp.dataset.meta || '字段'
+    }
+  }
+  return null
+}
+
+// 放弃未保存改动前的确认
+function confirmDiscard() {
+  if (!S.unsaved) return true
+  return confirm('有未保存的改动，确定放弃并继续？')
+}
+
+async function saveAll() {
   showToast('保存中…', 'busy')
   try {
     if (S.currentPanel === 'system' && S.system) {
-      collectSystem()
-      const text = encodeSave(S.system.obj)
-      window.api.writeText(S.system.path, text)
-      S.system.orig = deepClone(S.system.obj)
-      $('json-editor').value = JSON.stringify(S.system.obj, null, 2)
+      let obj
+      if (S.jsonDirty) {
+        // JSON 编辑器有未「应用」的改动时，直接以编辑器内容为准
+        obj = JSON.parse($('json-editor').value)
+        if (classifyObj(obj) !== 'system') { showToast('JSON 不是系统存档结构，保存已取消', 'error'); return }
+      } else {
+        const bad = validateIntFields()
+        if (bad) { showToast(`「${bad}」只能填整数`, 'error'); return }
+        collectSystem()
+        obj = S.system.obj
+      }
+      // 角色 tab：把角色变量编辑一并写回槽位存档
+      const roleDirty = currentTab() === 'roles' ? flushRoleBody() : false
+      const ok1 = await window.api.writeText(S.system.path, encodeSave(obj))
+      let ok2 = true
+      if (roleDirty) ok2 = await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+      if (!ok1 || !ok2) throw new Error('写入失败')
+      S.system.obj = obj
+      S.system.orig = deepClone(obj)
+      S.jsonDirty = false
+      $('json-editor').value = JSON.stringify(obj, null, 2)
+      applyFanaticTheme() // kill 改变时同步刷新狂信徒主题
       setStatus('已保存: ' + S.system.path)
+      S.unsaved = false
     } else if (S.currentPanel === 'slots' && S.slots) {
+      const bad = validateIntFields()
+      if (bad) { showToast(`「${bad}」只能填整数`, 'error'); return }
       collectSlots()
-      const text = encodeSave(S.slots.obj)
-      window.api.writeText(S.slots.path, text)
+      const ok = await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+      if (!ok) throw new Error('写入失败')
       renderSlotGrid()
       setStatus('已保存: ' + S.slots.path)
+      S.unsaved = false
     }
     showToast('保存成功', 'success')
   } catch (err) {
@@ -1321,11 +1476,23 @@ function setStatus(t) { $('statusbar').textContent = t }
 function updateSaveBtn() { $('btn-save').disabled = !(S.currentPanel === 'system' || S.currentPanel === 'slots') }
 
 // ================= 事件绑定 =================
+// 未保存改动追踪：用户改动可编辑面板内任意输入即标记（程序渲染赋值不触发事件，不会误标）
+document.addEventListener('input', e => {
+  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) S.unsaved = true
+})
+document.addEventListener('change', e => {
+  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) S.unsaved = true
+})
+
 $('btn-open').onclick = async () => {
+  if (!confirmDiscard()) return
   const dir = await window.api.pickDir()
   if (dir) await openDir(dir)
 }
-$('btn-refresh').onclick = async () => { if (S.dir) await openDir(S.dir) }
+$('btn-refresh').onclick = async () => {
+  if (!confirmDiscard()) return
+  if (S.dir) await openDir(S.dir)
+}
 $('btn-save').onclick = saveAll
 
 // 备份：把存档目录复制到 backup/<时间戳>
@@ -1447,7 +1614,7 @@ $('new-create').onclick = async () => {
 }
 
 // ---------- 检查更新（GitHub Releases） ----------
-const APP_VERSION = '0.1.3'
+const APP_VERSION = '0.1.4'
 const UPDATE_REPO = 'moruacat/DC-SavaEditor'
 function versionCmp(a, b) {
   // a > b 返回 1，a < b 返回 -1，相等 0
@@ -1506,6 +1673,8 @@ $('btn-import').onclick = async () => {
     if (!S.system) { S.system = { path: S.dir + '/DevilConnection_sf.sav', obj, orig: deepClone(obj) } }
     else { S.system.obj = obj; S.system.orig = deepClone(obj) }
     S.currentPanel = 'system'
+    S.unsaved = false
+    S.jsonDirty = false
     renderSystem()
     showPanel('system')
     setStatus('已导入并载入系统存档: ' + res.name)
@@ -1621,18 +1790,49 @@ const I18N_CODES = [
   { code: 'zh-Hant', name: '繁體中文' },
 ]
 let i18nMap = null // 当前翻译 { 原中文: 译文 }
+let i18nObs = null
+function i18nReplaceAttr(el) {
+  if (!i18nMap || el.nodeType !== 1 || !el.getAttribute) return
+  const ph = el.getAttribute('placeholder')
+  if (ph && i18nMap[ph]) el.setAttribute('placeholder', i18nMap[ph])
+  const tt = el.getAttribute('title')
+  if (tt && i18nMap[tt]) el.setAttribute('title', i18nMap[tt])
+}
 function applyI18n() {
   if (!i18nMap) return
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   while (walker.nextNode()) {
     const n = walker.currentNode
-    const v = n.nodeValue
-    if (v && i18nMap[v]) n.nodeValue = i18nMap[v]
+    if (n.nodeValue && i18nMap[n.nodeValue]) n.nodeValue = i18nMap[n.nodeValue]
   }
-  document.querySelectorAll('input[placeholder]').forEach(el => {
-    const p = el.getAttribute('placeholder')
-    if (p && i18nMap[p]) el.setAttribute('placeholder', i18nMap[p])
+  document.querySelectorAll('input[placeholder], [title]').forEach(el => i18nReplaceAttr(el))
+}
+// 让之后动态插入到界面的文本（槽位/角色/图鉴/附加等）也自动套用当前语言
+function ensureI18nObserver() {
+  if (i18nObs) return
+  i18nObs = new MutationObserver(muts => {
+    if (!i18nMap) return
+    for (const m of muts) {
+      if (m.type === 'characterData') {
+        const v = m.target.nodeValue
+        if (v && i18nMap[v]) m.target.nodeValue = i18nMap[v]
+        continue
+      }
+      for (const n of m.addedNodes) {
+        if (n.nodeType === 3) { if (n.nodeValue && i18nMap[n.nodeValue]) n.nodeValue = i18nMap[n.nodeValue] }
+        else if (n.nodeType === 1) {
+          i18nReplaceAttr(n)
+          const tw = document.createTreeWalker(n, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT)
+          while (tw.nextNode()) {
+            const c = tw.currentNode
+            if (c.nodeType === 3) { if (c.nodeValue && i18nMap[c.nodeValue]) c.nodeValue = i18nMap[c.nodeValue] }
+            else i18nReplaceAttr(c)
+          }
+        }
+      }
+    }
   })
+  i18nObs.observe(document.body, { subtree: true, childList: true, characterData: true })
 }
 async function initI18n() {
   const sel = $('lang-sel')
@@ -1656,9 +1856,10 @@ async function initI18n() {
     if (code === 'zh') { i18nMap = null }
     else { const hit = found.find(l => l.code === code); if (hit) i18nMap = hit.map }
     try { localStorage.setItem('dc-lang', code) } catch (_) {}
-    applyI18n()
-    showToast(i18nMap ? '界面已切换语言' : '界面已恢复中文', 'success')
+    // 保存语言选择后重启应用，让本地化对界面完全生效（重启后 initI18n 自动恢复所选语言）
+    if (window.api && window.api.relaunch) setTimeout(() => { window.api.relaunch() }, 150)
   })
+  ensureI18nObserver() // 启动后即便后续打开存档/渲染面板，也按当前语言显示
 }
 
 // ---------- 字段搜索 ----------
@@ -1696,6 +1897,7 @@ $('json-search').addEventListener('input', () => { jsonSearchIdx = 0 })
 const jsonEd = $('json-editor')
 jsonEd.addEventListener('focus', () => jsonEd.classList.add('growing'))
 jsonEd.addEventListener('input', () => {
+  S.jsonDirty = true
   jsonEd.style.height = 'auto'
   jsonEd.style.height = Math.min(jsonEd.scrollHeight, 520) + 'px'
 })

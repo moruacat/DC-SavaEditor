@@ -243,3 +243,9 @@ ipcMain.handle('fs:restore', (_e, storageDir, backupName) => {
   copyDirSync(src, storageDir)
   return true
 })
+
+// 重启应用（切换语言等需要完全刷新界面的场景）
+ipcMain.handle('app:relaunch', () => {
+  app.relaunch()
+  app.exit()
+})

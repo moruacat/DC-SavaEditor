@@ -97,6 +97,19 @@
             <div id="var-table" class="var-table"></div>
           </div>
           <div id="sys-roles" class="tabpage">
+            <div class="fanatic-bar" id="fanatic-bar">
+              <div class="fanatic-head">
+                <span class="badge">狂信徒线</span>
+                <span id="fanatic-state" class="hint"></span>
+              </div>
+              <div class="fanatic-row">
+                <label for="fanatic-name">名字</label>
+                <select id="fanatic-name"></select>
+                <button id="fanatic-on" class="btn primary">设为狂信徒线</button>
+                <button id="fanatic-off" class="btn" disabled>取消</button>
+                <label style="color:var(--muted)">触发：槽位名字为特殊名 + 系统 sf.kill≠0</label>
+              </div>
+            </div>
             <div class="legend" style="flex-wrap:wrap">
               <label>查看槽位：<select id="role-slot"></select></label>
               <button id="role-save" class="btn primary">保存到槽位存档</button>

@@ -113,6 +113,102 @@
   --e3: 0 6px 12px rgba(0, 0, 0, .5), 0 12px 28px rgba(0, 0, 0, .6);
 }
 
+/* ---------- 狂信徒主题（黑化/暗红，自动触发，不可手动切换） ----------
+   当存档处于狂信徒线（sf.kill ≠ 0）时由脚本自动加上 [data-fanatic]。
+   狂信徒主题分深/浅两套，跟随当前 data-theme（即用户此前选的深浅色）。 */
+/* 浅色狂信徒：暗红主色 + 明亮红调 */
+[data-fanatic] {
+  --primary: #b53a26;
+  --on-primary: #ffffff;
+  --primary-container: #ffdad3;
+  --on-primary-container: #3a0b04;
+  --secondary: #8c5650;
+  --on-secondary: #ffffff;
+  --secondary-container: #ffdad4;
+  --on-secondary-container: #3b110d;
+
+  --surface: #fef7f5;
+  --surface-container-low: #fbeae6;
+  --surface-container: #f5e0db;
+  --surface-container-high: #ead3ce;
+
+  --on-surface: #251816;
+  --on-surface-variant: #58413e;
+  --outline: #7e6a66;
+  --error: #ba1a1a;
+
+  --bg: var(--surface);
+  --panel: var(--surface-container-low);
+  --panel-hover: var(--surface-container-high);
+  --card-bg: var(--surface-container);
+  --border: var(--outline);
+  --border-soft: #e3c5c0;
+  --text: var(--on-surface);
+  --muted: var(--on-surface-variant);
+  --accent: var(--primary);
+  --accent-soft: var(--primary-container);
+  --on-accent-soft: var(--on-primary-container);
+  --input-bg: var(--surface);
+  --thumb-bg: var(--surface-container-high);
+
+  --hint-bg: #ffe0db;
+  --hint-border: #dca49a;
+  --hint-text: #6b2a20;
+  --hint-strong: #4b1208;
+
+  --scroll-thumb: #cfb1ac;
+  --scroll-thumb-hover: #b69891;
+  --shadow: rgba(40, 10, 6, .14);
+  --danger: #ba1a1a;
+  --primary-hover: rgba(181, 58, 38, .13);
+}
+/* 深色狂信徒：黑化红，主色取亮红以贴合深色主题惯例 */
+[data-fanatic][data-theme="dark"] {
+  --primary: #f5a08c;
+  --on-primary: #4d160c;
+  --primary-container: #7a2415;
+  --on-primary-container: #ffdad3;
+  --secondary: #ddb8b1;
+  --on-secondary: #422722;
+  --secondary-container: #58332e;
+  --on-secondary-container: #ffdad4;
+
+  --surface: #171010;
+  --surface-container-low: #201717;
+  --surface-container: #261c1c;
+  --surface-container-high: #322626;
+
+  --on-surface: #f1e4e0;
+  --on-surface-variant: #b3a09c;
+  --outline: #8a7873;
+  --error: #ffb4ab;
+
+  --bg: var(--surface);
+  --panel: var(--surface-container-low);
+  --panel-hover: var(--surface-container-high);
+  --card-bg: var(--surface-container);
+  --border: var(--outline);
+  --border-soft: #3e3130;
+  --text: var(--on-surface);
+  --muted: var(--on-surface-variant);
+  --accent: var(--primary);
+  --accent-soft: var(--primary-container);
+  --on-accent-soft: var(--on-primary-container);
+  --input-bg: #1b1514;
+  --thumb-bg: #3a2c2b;
+
+  --hint-bg: #3c1a13;
+  --hint-border: #6b2a1e;
+  --hint-text: #ffc9bf;
+  --hint-strong: #ffdcd5;
+
+  --scroll-thumb: #4a3937;
+  --scroll-thumb-hover: #5d4a48;
+  --shadow: rgba(0, 0, 0, .55);
+  --danger: #ffb4ab;
+  --primary-hover: rgba(245, 160, 140, .18);
+}
+
 /* ============================================================
    动画定义（可整体关闭）
    ============================================================ */
@@ -265,6 +361,15 @@ body {
 .search-input:focus { outline: none; border-color: var(--primary); }
 .search-input.small { margin-bottom: 8px; }
 
+/* ---------- 下拉框（与输入框统一风格；工具栏 .lang-select 仍为 pill 风格由更具体规则覆盖） ---------- */
+select {
+  padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: var(--r-sm);
+  font-size: 13px; font-family: inherit; color: var(--text);
+  background-color: var(--input-bg); cursor: pointer;
+  transition: border-color .18s ease;
+}
+select:focus { outline: none; border-color: var(--primary); }
+
 /* ---------- 提示条 ---------- */
 .hint {
   background: var(--hint-bg); border: 1px solid var(--hint-border); color: var(--hint-text);
@@ -395,6 +500,14 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 .extra-grid .meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .extra-grid .id { color: var(--muted); font-size: 11px; width: 26px; }
 .extra-grid .name { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 狂信徒线控件（角色面板） */
+.fanatic-bar { border: 1px solid var(--border-soft); border-radius: var(--r-lg); padding: 10px 12px; margin-bottom: 10px; background: var(--card-bg); box-shadow: var(--e1); display: flex; flex-direction: column; gap: 8px; }
+.fanatic-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fanatic-head .badge { background: var(--primary); color: #fff; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.fanatic-head .hint { margin: 0; }
+.fanatic-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
 
 /* ---------- 照片网格 ---------- */
 .grid { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; overflow-y: auto; padding-bottom: 12px; }

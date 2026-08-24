@@ -293,6 +293,13 @@ fn delete_file(path: String) -> Result<bool, String> {
     }
 }
 
+// 重启应用（切换语言等需要完全刷新界面的场景）
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) -> Result<(), String> {
+    app.restart();
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -313,7 +320,8 @@ pub fn run() {
             backup_storage,
             list_backups,
             restore_storage,
-            delete_file
+            delete_file,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

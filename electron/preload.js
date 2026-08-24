@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restore: (dir, name) => ipcRenderer.invoke('fs:restore', dir, name),
   saveDataUrl: (path, dataUrl) => ipcRenderer.invoke('fs:saveDataUrl', path, dataUrl),
   delFile: path => ipcRenderer.invoke('fs:delFile', path),
+  relaunch: () => ipcRenderer.invoke('app:relaunch'),
 })
