@@ -1,6 +1,6 @@
 [package]
 name = "dc-save-editor"
-version = "0.1.0"
+version = "0.1.1"
 description = "恶魔连结 存档编辑器 (Tauri)"
 edition = "2021"
 
