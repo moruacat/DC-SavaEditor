@@ -1028,10 +1028,8 @@ function bindAutoGrow(ta) {
     ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px'
   }
   const collapse = () => {
-    ta.style.height = ''
-    ta.style.height = 'auto'
-    ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px' // 保底：内容本来就很长则保留
-    if (ta.scrollHeight <= 30) ta.style.height = ''
+    // 明确设为单行像素高，触发 CSS height 过渡 → 收起动画
+    ta.style.height = '32px'
   }
   ta.addEventListener('focus', grow)
   ta.addEventListener('input', grow)
