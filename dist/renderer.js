@@ -1156,7 +1156,7 @@ $('btn-restore').onclick = async () => {
 $('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
 
 // ---------- 检查更新（GitHub Releases） ----------
-const APP_VERSION = '0.1.1'
+const APP_VERSION = '0.1.2'
 const UPDATE_REPO = 'moruacat/DC-SavaEditor'
 function versionCmp(a, b) {
   // a > b 返回 1，a < b 返回 -1，相等 0
