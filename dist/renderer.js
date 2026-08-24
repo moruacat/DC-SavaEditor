@@ -358,6 +358,9 @@ function renderSystem() {
     ta.dataset.bind = 'grow' // 复用自动增高逻辑
     ta.rows = 1
     ta.className = 'auto-grow'
+    ta.spellcheck = false // 关闭拼写检查
+    ta.autocomplete = 'off'
+    ta.autocapitalize = 'off'
     ta.value = Array.isArray(m[key]) ? m[key].join(', ') : (m[key] || '')
     f.appendChild(ta)
     lBox.appendChild(f)

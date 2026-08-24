@@ -296,6 +296,8 @@ body {
 /* ---------- 表单 ---------- */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 14px; }
 .form-grid .field { display: flex; align-items: center; gap: 8px; }
+.form-grid .field:has(textarea.auto-grow) { align-items: flex-start; } /* 顶部对齐，向下展开 */
+.form-grid .field:has(textarea.auto-grow) label { padding-top: 7px; } /* 让标签文字与单行输入水平对齐 */
 .form-grid label { color: var(--muted); min-width: 110px; text-align: right; font-size: 12px; }
 .form-grid input, .form-grid select {
   flex: 1; padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: var(--r-sm);
