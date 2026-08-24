@@ -1155,11 +1155,15 @@ $('btn-restore').onclick = async () => {
 }
 $('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
 
-// ---------- 新建空白存档（损坏重建） ----------
+// ---------- 新建空白存档（按游戏代码推断的全部类型） ----------
 const NEW_SAVE_FILES = {
   system: 'DevilConnection_sf.sav',
   slots: 'DevilConnection_tyrano_data.sav',
   quick: 'DevilConnection_tyrano_quick_save.sav',
+  auto: 'DevilConnection_tyrano_auto_save.sav',
+  auto_b: 'DevilConnection_tyrano_auto_save_b.sav',
+  photo_ids: 'DevilConnection_photo_ids.sav',
+  photo_all_ids: 'DevilConnection_photo_all_ids.sav',
 }
 function buildNewSaveObj(type, slotNum) {
   if (type === 'system') {
@@ -1181,8 +1185,11 @@ function buildNewSaveObj(type, slotNum) {
     const empty = { title: 'NO SAVE', current_order_index: 0, save_date: '', img_data: '', phase_file: '', stat: {} }
     return { kind: 'save', hash: '', data: Array.from({ length: n }, () => JSON.parse(JSON.stringify(empty))) }
   }
-  // quick / auto：单存档对象
-  return { title: 'QUICK SAVE', current_order_index: 0, save_date: '', img_data: '', phase_file: '', stat: { f: {} } }
+  if (type === 'photo_ids' || type === 'photo_all_ids') {
+    return [] // 照片 ID 列表，空数组 = 清空相册索引
+  }
+  // quick / auto / auto_b：单存档对象（结构与游戏 snapSave 一致）
+  return { title: type === 'quick' ? 'QUICK SAVE' : 'AUTO SAVE', current_order_index: 0, save_date: '', img_data: '', phase_file: '', stat: { f: {} } }
 }
 $('btn-new').onclick = () => {
   if (!S.dir) { showToast('请先打开存档文件夹', 'error'); return }
@@ -1205,8 +1212,9 @@ $('new-create').onclick = async () => {
   await window.api.writeText(full, encodeSave(obj))
   $('new-modal').classList.add('hidden')
   showToast('已创建空白存档', 'success')
-  // 刷新并自动载入
+  // 刷新；照片列表类只刷新不载入
   await openDir(S.dir)
+  if (type === 'photo_ids' || type === 'photo_all_ids') { setStatus('已创建（空）: ' + fname); return }
   const text = await window.api.readText(full)
   const o = decodeSave(text)
   if (type === 'system') loadSystem(full, o)
