@@ -10,22 +10,27 @@
   <!-- 顶部工具栏 -->
   <header id="toolbar">
     <button id="btn-open" class="btn primary">打开存档文件夹…</button>
-    <button id="btn-refresh" class="btn">刷新</button>
+    <button id="btn-save" class="btn primary" disabled>保存</button>
     <span id="path-label" class="path-label" title=""></span>
     <div class="spacer"></div>
-    <button id="btn-resource" class="btn">资源目录</button>
-    <span id="res-label" class="path-label small"></span>
-    <span class="spacer"></span>
-    <button id="btn-backup" class="btn" title="备份整个存档文件夹到 backup/">🗜 备份</button>
-    <button id="btn-restore" class="btn" title="从 backup/ 还原存档">↩ 还原</button>
-    <button id="btn-new" class="btn" title="新建空白存档（损坏存档重建用）">➕ 新建</button>
-    <button id="btn-export" class="btn" title="解码并导出当前系统存档为明文 JSON">⬇ 导出</button>
-    <button id="btn-import" class="btn" title="导入明文 JSON 并载入系统存档">⬆ 导入</button>
     <button id="btn-theme" class="btn" title="切换深色/浅色模式">🌙 深色</button>
     <button id="btn-anim" class="btn" title="切换界面动画（回弹/弹跳/平滑过渡）">🎬 动画</button>
-    <select id="lang-sel" class="lang-select" title="界面语言（检测到 lang_*.json 时可用）" style="display:none"></select>
-    <button id="btn-update" class="btn" title="检查 GitHub 最新版本">🔁 检查更新</button>
-    <button id="btn-save" class="btn primary" disabled>保存</button>
+    <div class="menu-wrap">
+      <button id="btn-more" class="btn" title="更多工具">☰</button>
+      <div id="more-menu" class="menu hidden">
+        <button id="btn-undo" class="btn menu-item" title="撤销最近一次一键全解锁/全收集">↶ 撤销</button>
+        <button id="btn-refresh" class="btn menu-item">刷新</button>
+        <button id="btn-resource" class="btn menu-item">资源目录</button>
+        <span id="res-label" class="path-label small menu-item"></span>
+        <button id="btn-backup" class="btn menu-item" title="备份整个存档文件夹到 backup/">🗜 备份</button>
+        <button id="btn-restore" class="btn menu-item" title="从 backup/ 还原存档">↩ 还原</button>
+        <button id="btn-new" class="btn menu-item" title="新建空白存档（损坏存档重建用）">➕ 新建</button>
+        <button id="btn-export" class="btn menu-item" title="解码并导出当前系统存档为明文 JSON">⬇ 导出</button>
+        <button id="btn-import" class="btn menu-item" title="导入明文 JSON 并载入系统存档">⬆ 导入</button>
+        <button id="btn-update" class="btn menu-item" title="检查 GitHub 最新版本">🔁 检查更新</button>
+        <select id="lang-sel" class="lang-select menu-item" title="界面语言（检测到 lang_*.json 时可用）" style="display:none"></select>
+      </div>
+    </div>
   </header>
 
   <div id="main">
@@ -40,6 +45,16 @@
         <h2>恶魔连结 存档编辑器</h2>
         <p>点击「打开存档文件夹」，默认读取游戏存档目录 <code>_storage</code></p>
         <p>支持：系统存档 / 槽位存档(动态扩容，最多600) / 快速·自动存档 / 游戏照片预览与导出</p>
+        <div id="guide-card" class="guide-card" style="display:none">
+          <div class="guide-head">快速上手</div>
+          <ol class="guide-steps">
+            <li><b>1. 打开存档文件夹</b> — 点击左上角「打开存档文件夹」，选择游戏 <code>_storage</code> 目录</li>
+            <li><b>2. 选择要改的存档</b> — 在左侧列表点击某个存档文件</li>
+            <li><b>3. 修改</b> — 在右侧面板用图形化界面修改（结局、贴纸、变量等）</li>
+            <li><b>4. 保存</b> — 点右上角「保存」按钮。有未保存改动时按钮会变橙色并显示 *</li>
+          </ol>
+          <button id="guide-close" class="btn">知道了</button>
+        </div>
       </div>
       <div id="panels" style="display:none">
         <!-- 照片面板 -->
@@ -68,7 +83,7 @@
             <button class="tab" data-tab="roles">角色</button>
             <button class="tab" data-tab="rolepedia">图鉴</button>
             <button class="tab" data-tab="extra">附加</button>
-            <button class="tab" data-tab="json">JSON</button>
+            <button class="tab tab-danger" data-tab="json" title="高危：直接编辑 JSON 可能损坏存档">JSON</button>
           </div>
           <div id="sys-overview" class="tabpage active">
             <div id="name-hint" class="hint"></div>
@@ -133,6 +148,7 @@
             <div class="extra-grid" id="extra-ngscene"></div>
           </div>
           <div id="sys-json" class="tabpage">
+            <div class="json-warn hint" style="display:none">⚠ 高危：直接编辑 JSON 可能损坏存档。建议先「备份」，或改用上方图形化标签编辑。</div>
             <input id="json-search" class="search-input" placeholder="🔍 在 JSON 中查找（Enter 跳到下一个）…" />
             <textarea id="json-editor" spellcheck="false"></textarea>
           </div>
@@ -156,7 +172,7 @@
     </section>
   </div>
 
-  <footer id="statusbar">就绪</footer>
+  <footer id="statusbar"><span id="status-text">就绪</span><span class="spacer"></span><span id="status-meta"></span></footer>
   <div id="toast" class="toast hidden"></div>
 
   <!-- 照片大图模态 -->

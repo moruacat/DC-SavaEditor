@@ -27,6 +27,8 @@ const S = {
   activeEntry: null,
   unsaved: false,       // 是否存在未保存的编辑（用于切换/刷新前提醒）
   jsonDirty: false,     // JSON 编辑器是否有未「应用」的改动
+  fileCount: 0,         // 当前目录存档文件总数（状态栏用）
+  undoStack: [],        // 一键操作历史：{ label, obj }（deepClone 的系统存档快照，用于撤销）
 }
 
 // ================= DOM 快捷 =================
@@ -117,6 +119,7 @@ async function openDir(dir) {
 
   renderFileList(groups)
   renderPhotos()
+  S.fileCount = savs.length
   setStatus(`${savs.length} 个存档文件，${S.photos.length} 张照片`)
   // 无任何可编辑存档（系统/槽位/快速）时的说明
   const hasEditable = groups.system.length || groups.slots.length || groups.single.length
@@ -126,7 +129,14 @@ async function openDir(dir) {
     showEmptyHint(true)
     return
   }
-  showPanel('photo')
+  // 默认打开存档视图（优先系统存档），而非照片视图
+  const sys = groups.system[0]
+  const slot = groups.slots[0]
+  const single = groups.single[0]
+  if (sys) openEntry(sys, 'system')
+  else if (slot) openEntry(slot, 'slots')
+  else if (single) openEntry(single, 'single')
+  else showPanel('photo')
   showEmptyHint(false)
 }
 
@@ -160,21 +170,7 @@ function renderFileList(groups) {
     return item
   }
 
-  // 照片
-  if (groups.photos.length) {
-    const b = addGroup('照片', '📷')
-    b.textContent = groups.photos.length
-    // 占位：照片条目点击进入照片面板
-    const item = el('div', 'file-item')
-    item.innerHTML = `<span class="fname">全部照片</span><span class="fsize">${groups.photos.length} 张</span>`
-    item.addEventListener('click', () => {
-      document.querySelectorAll('.file-item').forEach(x => x.classList.remove('active'))
-      item.classList.add('active')
-      renderPhotos()
-      showPanel('photo')
-    })
-    box.appendChild(item)
-  }
+  // 可编辑存档优先展示，照片（只读预览）置底并加分隔
   for (const kind of ['system', 'slots', 'single']) {
     const arr = groups[kind]
     if (!arr.length) continue
@@ -186,6 +182,22 @@ function renderFileList(groups) {
     const b = addGroup('其它文件', '📄')
     b.textContent = groups.other.length
     for (const e of groups.other) addItem(e, 'other', e.name)
+  }
+  // 照片（只读预览，放在最后）
+  if (groups.photos.length) {
+    const sep = el('div', 'file-sep', '— 照片预览（不可编辑） —')
+    box.appendChild(sep)
+    const b = addGroup('照片', '📷')
+    b.textContent = groups.photos.length
+    const item = el('div', 'file-item')
+    item.innerHTML = `<span class="fname">全部照片</span><span class="fsize">${groups.photos.length} 张</span>`
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.file-item').forEach(x => x.classList.remove('active'))
+      item.classList.add('active')
+      renderPhotos()
+      showPanel('photo')
+    })
+    box.appendChild(item)
   }
 }
 
@@ -495,22 +507,28 @@ function renderSystem() {
   $('end-unlock-all').checked = endAll()
   $('end-collect-all').checked = collectAll()
   $('stick-all').checked = stickAll()
-  // 全部解锁/收集快捷
+  // 全部解锁/收集快捷（二次确认 + 可撤销）
   $('end-unlock-all').onchange = e => {
-    $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
-      if (cb.dataset.kind === 'endings') cb.checked = e.target.checked
+    bulkToggle(e, '确定「解锁全部结局」吗？此操作可在更多菜单撤销。', () => {
+      $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
+        if (cb.dataset.kind === 'endings') cb.checked = e.target.checked
+      })
+      renderOverviewProgress(m)
     })
-    renderOverviewProgress(m)
   }
   $('end-collect-all').onchange = e => {
-    $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
-      if (cb.dataset.kind === 'collectedEndings') cb.checked = e.target.checked
+    bulkToggle(e, '确定「收集全部结局」吗？此操作可在更多菜单撤销。', () => {
+      $('end-grid').querySelectorAll('input[data-field="end"]').forEach(cb => {
+        if (cb.dataset.kind === 'collectedEndings') cb.checked = e.target.checked
+      })
+      renderOverviewProgress(m)
     })
-    renderOverviewProgress(m)
   }
   $('stick-all').onchange = e => {
-    $('stick-grid').querySelectorAll('input[data-field="stick"]').forEach(cb => { cb.checked = e.target.checked })
-    renderOverviewProgress(m)
+    bulkToggle(e, '确定「解锁全部贴纸」吗？此操作可在更多菜单撤销。', () => {
+      $('stick-grid').querySelectorAll('input[data-field="stick"]').forEach(cb => { cb.checked = e.target.checked })
+      renderOverviewProgress(m)
+    })
   }
   initTabButtons()
   updateSaveBtn()
@@ -552,7 +570,9 @@ function renderRolePedia() {
   })
   $('rolepedia-all').checked = (cur.size >= ROLE_LIB.length)
   $('rolepedia-all').onchange = e => {
-    $('rolepedia-grid').querySelectorAll('input[data-field="role"]').forEach(cb => { cb.checked = e.target.checked })
+    bulkToggle(e, '确定「收集全部角色」吗？此操作可在更多菜单撤销。', () => {
+      $('rolepedia-grid').querySelectorAll('input[data-field="role"]').forEach(cb => { cb.checked = e.target.checked })
+    })
   }
 }
 
@@ -560,7 +580,7 @@ function renderRolePedia() {
 function renderExtraPedia() {
   const m = S.system.obj
   const base = 'data/image/collection_omake'
-  const renderGrid = (layerId, allId, items, curSet, dataField, getLabel, imgSrc) => {
+  const renderGrid = (layerId, allId, items, curSet, dataField, getLabel, imgSrc, bulkLabel) => {
     const grid = $(layerId)
     if (!grid) return
     grid.innerHTML = ''
@@ -593,24 +613,26 @@ function renderExtraPedia() {
     const all = $(allId)
     all.checked = (curSet.size >= items.length)
     all.onchange = e => {
-      grid.querySelectorAll(`input[data-field="${dataField}"]`).forEach(cb => { cb.checked = e.target.checked })
+      bulkToggle(e, bulkLabel, () => {
+        grid.querySelectorAll(`input[data-field="${dataField}"]`).forEach(cb => { cb.checked = e.target.checked })
+      })
     }
   }
 
   // 剧场：omakes 存结局编号（字符串），标题取自 ENDINGS（无独立缩略图）
   const omakeSet = new Set(String(m.omakes || []).split(',').filter(Boolean))
   renderGrid('extra-omake', 'omake-all', OMAKE_LIB, omakeSet, 'omake',
-    id => (ENDINGS[id] && ENDINGS[id].title) || ('剧场 ' + id))
+    id => (ENDINGS[id] && ENDINGS[id].title) || ('剧场 ' + id), null, '确定「解锁全部剧场」吗？此操作可在更多菜单撤销。')
 
   // 相册：gallery 存 name，缩略图 collection_omake/gallery/thumb/<name>.webp
   const galSet = new Set(String(m.gallery || []).split(',').filter(Boolean))
   renderGrid('extra-gallery', 'gallery-all', GALLERY_LIB, galSet, 'gallery',
-    g => g.title, g => `${base}/gallery/thumb/${g.name}.webp`)
+    g => g.title, g => `${base}/gallery/thumb/${g.name}.webp`, '确定「收集全部相册」吗？此操作可在更多菜单撤销。')
 
   // NG 场景：ngScene 存 name，缩略图 collection_omake/ng/thumb/<name>.webp
   const ngSet = new Set(String(m.ngScene || []).split(',').filter(Boolean))
   renderGrid('extra-ngscene', 'ngscene-all', NGSCENE_LIB, ngSet, 'ngscene',
-    g => g.title, g => `${base}/ng/thumb/${g.name}.webp`)
+    g => g.title, g => `${base}/ng/thumb/${g.name}.webp`, '确定「收集全部 NG 场景」吗？此操作可在更多菜单撤销。')
 }
 
 // 召唤师名字提示：实际名字存储在槽位存档 stat.f.name，系统存档 initialVars.name 为初始默认值
@@ -802,6 +824,9 @@ function initTabButtons() {
       document.querySelectorAll('#panel-system .tabpage').forEach(p => p.classList.remove('active'))
       const target = $('sys-' + t.dataset.tab)
       target.classList.add('active')
+      // JSON 标签进入时显示安全警示
+      const warn = $('json-warn')
+      if (warn) warn.style.display = t.dataset.tab === 'json' ? '' : 'none'
       // 内容切换动画（平滑淡入上移）
       target.classList.remove('anim-in')
       void target.offsetWidth
@@ -1472,16 +1497,68 @@ function parseVal(raw, type) {
   return toScalar(raw)
 }
 function deepClone(o) { return JSON.parse(JSON.stringify(o)) }
-function setStatus(t) { $('statusbar').textContent = t }
-function updateSaveBtn() { $('btn-save').disabled = !(S.currentPanel === 'system' || S.currentPanel === 'slots') }
+function setStatus(t) {
+  const el = $('status-text')
+  if (el) el.textContent = t
+  updateStatusMeta()
+}
+// 状态栏右侧：已打开文件 + 未保存改动等关键信息
+function updateStatusMeta() {
+  const el = $('status-meta')
+  if (!el) return
+  const parts = []
+  if (S.activeEntry && S.activeEntry.path) parts.push('已打开 ' + (S.activeEntry.path.split(/[\\/]/).pop() || ''))
+  if (S.fileCount) parts.push(S.fileCount + ' 个存档')
+  if (S.unsaved) parts.push('未保存改动')
+  el.textContent = parts.join(' · ')
+  el.classList.toggle('dirty', !!S.unsaved)
+}
+function updateSaveBtn() {
+  const btn = $('btn-save')
+  const editable = S.currentPanel === 'system' || S.currentPanel === 'slots'
+  btn.disabled = !editable
+  btn.classList.toggle('dirty', !!(editable && S.unsaved))
+  // 标题栏星号提示未保存（浏览器标签）
+  document.title = (S.unsaved ? '● ' : '') + '恶魔连结 存档编辑器'
+  updateStatusMeta()
+}
+
+// ================= 一键操作的二次确认 + 撤销 =================
+// 记录一键操作前的系统存档快照，供「撤销」恢复
+function pushUndo(label) {
+  if (!S.system || !S.system.obj) return
+  S.undoStack.push({ label, obj: deepClone(S.system.obj) })
+  if (S.undoStack.length > 20) S.undoStack.shift()
+}
+// 批量勾选（全部解锁/收集）：二次确认，确认后记录快照并执行
+function bulkToggle(e, label, apply) {
+  if (!confirm(label)) { e.target.checked = !e.target.checked; return }
+  pushUndo(label)
+  apply()
+  S.unsaved = true
+  updateSaveBtn()
+}
+// 撤销最近一次一键操作
+function undoLast() {
+  if (!S.system) { showToast('请先打开系统存档', 'error'); return }
+  const last = S.undoStack.pop()
+  if (!last) { showToast('没有可撤销的一键操作', 'error'); return }
+  S.system.obj = last.obj
+  S.system.orig = deepClone(last.obj)
+  S.unsaved = true
+  renderSystem()
+  updateSaveBtn()
+  setStatus('已撤销: ' + last.label)
+  showToast('已撤销「' + last.label + '」，请记得保存', 'success')
+}
 
 // ================= 事件绑定 =================
 // 未保存改动追踪：用户改动可编辑面板内任意输入即标记（程序渲染赋值不触发事件，不会误标）
 document.addEventListener('input', e => {
-  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) S.unsaved = true
+  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) { S.unsaved = true; updateSaveBtn() }
 })
 document.addEventListener('change', e => {
-  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) S.unsaved = true
+  if (e.target.closest && e.target.closest('#panel-system, #panel-slots')) { S.unsaved = true; updateSaveBtn() }
 })
 
 $('btn-open').onclick = async () => {
@@ -1494,6 +1571,29 @@ $('btn-refresh').onclick = async () => {
   if (S.dir) await openDir(S.dir)
 }
 $('btn-save').onclick = saveAll
+$('btn-undo').onclick = undoLast
+
+// 「更多」菜单开关（点击外部或再次点击关闭）
+$('btn-more').onclick = e => {
+  e.stopPropagation()
+  $('more-menu').classList.toggle('hidden')
+}
+document.addEventListener('click', e => {
+  const menu = $('more-menu')
+  if (menu && !menu.classList.contains('hidden') && !e.target.closest('.menu-wrap')) {
+    menu.classList.add('hidden')
+  }
+})
+// 菜单项被点击后关闭菜单（除语言选择下拉）
+$('more-menu').addEventListener('click', e => {
+  if (e.target.closest('button')) $('more-menu').classList.add('hidden')
+})
+
+// 首次引导卡片：仅首次显示
+$('guide-close').onclick = () => {
+  $('guide-card').style.display = 'none'
+  try { localStorage.setItem('dc-guide-seen', '1') } catch (_) {}
+}
 
 // 备份：把存档目录复制到 backup/<时间戳>
 $('btn-backup').onclick = async () => {
@@ -1614,7 +1714,7 @@ $('new-create').onclick = async () => {
 }
 
 // ---------- 检查更新（GitHub Releases） ----------
-const APP_VERSION = '0.1.4'
+const APP_VERSION = '0.1.5'
 const UPDATE_REPO = 'moruacat/DC-SavaEditor'
 function versionCmp(a, b) {
   // a > b 返回 1，a < b 返回 -1，相等 0
@@ -1963,6 +2063,8 @@ function applyAnim(en) {
   initTheme()
   initAnim()
   await initI18n()
+  // 首次启动显示引导卡片
+  try { if (!localStorage.getItem('dc-guide-seen')) $('guide-card').style.display = '' } catch (_) {}
   try {
     const dir = await window.api.defaultStorage()
     $('res-label').textContent = (await window.api.resourceRoots()).find(() => true) || ''

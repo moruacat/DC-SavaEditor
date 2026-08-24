@@ -5,6 +5,7 @@
 
 /* ---------- 亮色主题 ---------- */
 :root {
+  color-scheme: light;
   --primary: #1585c0;
   --on-primary: #ffffff;
   --primary-container: #cfe7f6;
@@ -64,6 +65,7 @@
 
 /* ---------- 深色主题 ---------- */
 [data-theme="dark"] {
+  color-scheme: dark;
   --primary: #6ec7f7;
   --on-primary: #00344f;
   --primary-container: #13507a;
@@ -268,6 +270,17 @@ body {
 .btn.primary:hover { filter: brightness(1.05); box-shadow: var(--e2); }
 .btn.danger { background: var(--error); color: #fff; }
 .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+/* 有未保存改动时保存按钮变橙，并在文字后追加星号（不改动文本，不破坏多语言） */
+.btn.primary.dirty { background: #e07a00; color: #fff; }
+.btn.primary.dirty::after { content: ' *'; }
+/* 「更多」下拉菜单 */
+.menu-wrap { position: relative; flex: 0 0 auto; }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 170px;
+  background: var(--surface-container-high); border: 1px solid var(--border-soft);
+  border-radius: var(--r-md); box-shadow: var(--e3); padding: 6px; display: flex; flex-direction: column; gap: 2px; z-index: 50; }
+.menu.hidden { display: none; }
+.menu .menu-item { text-align: left; border-radius: var(--r-md); background: transparent; color: var(--text); }
+.menu .menu-item:hover { background: var(--primary-hover); }
 .lang-select {
   padding: 6px 8px; border: 1px solid var(--border-soft); border-radius: var(--r-pill);
   background: var(--secondary-container); color: var(--on-secondary-container);
@@ -305,6 +318,11 @@ body {
 .file-item .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .file-item .fsize { color: var(--muted); font-size: 11px; }
 .file-item .fthumb { width: 36px; height: 36px; border-radius: var(--r-sm); object-fit: cover; background: var(--thumb-bg); flex: 0 0 auto; }
+/* 照片预览分隔（只读，置底） */
+.file-sep {
+  font-size: 11px; color: var(--muted); text-align: center;
+  padding: 8px 0 2px; margin-top: 8px; border-top: 1px dashed var(--border-soft);
+}
 
 /* ---------- 内容 ---------- */
 #content { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
@@ -312,6 +330,16 @@ body {
 .empty-hint { margin: auto; text-align: center; color: var(--muted); padding: 20px; }
 .empty-hint h2 { color: var(--text); font-weight: 500; }
 .empty-hint code { background: var(--thumb-bg); padding: 2px 8px; border-radius: var(--r-sm); }
+/* 首次引导卡片 */
+.guide-card {
+  margin: 20px auto 0; max-width: 440px; text-align: left;
+  background: var(--card-bg); border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--e1);
+}
+.guide-head { font-weight: 600; color: var(--text); margin-bottom: 10px; font-size: 14px; }
+.guide-steps { margin: 0 0 14px; padding-left: 20px; color: var(--muted); line-height: 1.9; font-size: 12px; }
+.guide-steps b { color: var(--text); }
+.guide-card .btn { margin-top: 2px; }
 .panel { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 14px 18px; overflow: hidden; }
 .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .panel-head h3 { margin: 0; font-size: 16px; font-weight: 500; }
@@ -349,6 +377,10 @@ body {
 .tab.active {
   color: var(--on-accent-soft);
 }
+/* JSON 标签：高危视觉警示 */
+.tab.tab-danger { color: var(--error); }
+.tab.tab-danger:hover { background: rgba(186, 26, 26, .10); color: var(--error); }
+.tab.tab-danger.active { color: var(--on-accent-soft); }
 .tabpage { display: none; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; }
 .tabpage.active { display: flex; }
 .tabpage.anim-in { animation: fadeUp .22s ease; }
@@ -368,6 +400,10 @@ select {
   background-color: var(--input-bg); cursor: pointer;
   transition: border-color .18s ease;
 }
+select option {
+  background-color: var(--input-bg);
+  color: var(--text);
+}
 select:focus { outline: none; border-color: var(--primary); }
 
 /* ---------- 提示条 ---------- */
@@ -381,6 +417,8 @@ select:focus { outline: none; border-color: var(--primary); }
   font-weight: 600; font-size: 14px; user-select: none;
 }
 .slot-hint-close:hover { opacity: 1; }
+/* JSON 高危警示条（覆盖 hint 的黄色为红色） */
+.json-warn { background: rgba(186, 26, 26, .10); border-color: var(--error); color: var(--error); }
 
 /* ---------- 概览圆形进度 ---------- */
 .progress-row { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -577,7 +615,9 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 .modal-body img { max-width: 86vw; max-height: 74vh; display: block; border-radius: var(--r-md); }
 
 /* ---------- 状态栏 ---------- */
-#statusbar { flex: 0 0 auto; padding: 5px 14px; background: var(--surface); border-top: 1px solid var(--border-soft); color: var(--muted); font-size: 12px; }
+#statusbar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 5px 14px; background: var(--surface); border-top: 1px solid var(--border-soft); color: var(--muted); font-size: 12px; }
+#status-meta { color: var(--muted); }
+#status-meta.dirty { color: #e07a00; font-weight: 600; }
 
 /* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
