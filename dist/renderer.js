@@ -501,6 +501,33 @@ function renderSystem() {
   updateSaveBtn()
   updateNameHint()
   renderRoles()
+  renderRolePedia()
+}
+
+// ================= 角色图鉴（sf.collectedCharacters 勾选） =================
+function renderRolePedia() {
+  const m = S.system.obj
+  const grid = $('rolepedia-grid')
+  if (!grid) return
+  grid.innerHTML = ''
+  const cur = new Set(String(m.collectedCharacters || []).split(',').filter(Boolean))
+  ROLE_LIB.forEach((name, i) => {
+    const label = el('label')
+    label.title = name.trim() ? name : '（空白占位项）'
+    label.style.setProperty('--i-delay', Math.min(i * 12, 700) + 'ms')
+    const cb = el('input')
+    cb.type = 'checkbox'
+    cb.checked = cur.has(name)
+    cb.dataset.field = 'role'
+    cb.dataset.name = name
+    label.appendChild(cb)
+    label.appendChild(el('span', null, name.trim() ? name : '·空·'))
+    grid.appendChild(label)
+  })
+  $('rolepedia-all').checked = (cur.size >= ROLE_LIB.length)
+  $('rolepedia-all').onchange = e => {
+    $('rolepedia-grid').querySelectorAll('input[data-field="role"]').forEach(cb => { cb.checked = e.target.checked })
+  }
 }
 
 // 召唤师名字提示：实际名字存储在槽位存档 stat.f.name，系统存档 initialVars.name 为初始默认值
@@ -1088,6 +1115,13 @@ function collectSystem() {
     else stickers.delete(id)
   })
   m.sticker = [...stickers].sort((a, b) => a - b)
+  // 角色收集（图鉴勾选）
+  const roles = new Set(String(m.collectedCharacters || []).split(',').filter(Boolean))
+  document.querySelectorAll('input[data-field="role"]').forEach(cb => {
+    if (cb.checked) roles.add(cb.dataset.name)
+    else roles.delete(cb.dataset.name)
+  })
+  m.collectedCharacters = ROLE_LIB.filter(n => roles.has(n))
   // 变量（仅写回修改）
   const init = m.initialVars = m.initialVars || {}
   document.querySelectorAll('#var-table input').forEach(inp => {

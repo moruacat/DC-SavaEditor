@@ -66,6 +66,7 @@
             <button class="tab" data-tab="stickers">贴纸</button>
             <button class="tab" data-tab="vars">变量</button>
             <button class="tab" data-tab="roles">角色</button>
+            <button class="tab" data-tab="rolepedia">图鉴</button>
             <button class="tab" data-tab="json">JSON</button>
           </div>
           <div id="sys-overview" class="tabpage active">
@@ -101,6 +102,10 @@
               <label style="color:var(--muted)">（角色攻略变量来自槽位存档 stat.f，按角色分组）</label>
             </div>
             <div id="role-body"></div>
+          </div>
+          <div id="sys-rolepedia" class="tabpage">
+            <div class="legend"><label><input type="checkbox" id="rolepedia-all"> 全部收集</label></div>
+            <div class="rolepedia" id="rolepedia-grid"></div>
           </div>
           <div id="sys-json" class="tabpage">
             <input id="json-search" class="search-input" placeholder="🔍 在 JSON 中查找（Enter 跳到下一个）…" />

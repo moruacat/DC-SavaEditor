@@ -367,6 +367,14 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 .var-table.compact .vt-desc { display: none; }
 .role-group { margin-bottom: 10px; }
 .role-group-title { font-weight: 600; color: var(--primary); padding: 4px 0 2px; font-size: 13px; }
+/* 角色图鉴 */
+.rolepedia { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; padding-bottom: 12px; }
+.rolepedia label {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer;
+  border-radius: var(--r-sm); transition: background .15s ease;
+  animation: flyIn .3s ease both; animation-delay: var(--i-delay, 0ms);
+}
+.rolepedia label:hover { background: var(--surface-container-low); }
 
 /* ---------- 照片网格 ---------- */
 .grid { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; overflow-y: auto; padding-bottom: 12px; }
