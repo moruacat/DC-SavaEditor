@@ -145,6 +145,16 @@ ipcMain.handle('fs:saveImage', async (_e, dataUrl, defaultName) => {
   return true
 })
 
+// 直接写 dataURL 到指定路径（批量导出用，前提目录已存在）
+ipcMain.handle('fs:saveDataUrl', (_e, p, dataUrl) => {
+  const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUrl)
+  if (!m) return false
+  try {
+    fs.writeFileSync(p, Buffer.from(m[2], 'base64'))
+    return true
+  } catch (_) { return false }
+})
+
 // 选择文件夹
 ipcMain.handle('fs:pickDir', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] })

@@ -19,6 +19,7 @@
       backup: dir => window.__TAURI__.core.invoke('backup_storage', { storageDir: dir }),
       listBackups: dir => window.__TAURI__.core.invoke('list_backups', { storageDir: dir }),
       restore: (dir, name) => window.__TAURI__.core.invoke('restore_storage', { storageDir: dir, backupName: name }),
+      saveDataUrl: (path, dataUrl) => window.__TAURI__.core.invoke('save_data_url', { dataUrl, path }),
     }
   } else if (window.electronAPI) {
     // ---------- Electron 后端（由 preload.js 通过 contextBridge 注入） ----------

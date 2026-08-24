@@ -1204,6 +1204,30 @@ $('btn-resource').onclick = async () => {
     setStatus('资源目录已设置，贴纸预览已刷新')
   }
 }
+
+// 批量导出全部照片到所选目录
+$('btn-batch-export').onclick = async () => {
+  if (!S.photos.length) { showToast('没有可导出的照片', 'error'); return }
+  const dir = await window.api.pickDir()
+  if (!dir) return
+  showToast(`导出中（0/${S.photos.length}）…`, 'busy')
+  let ok = 0, fail = 0
+  for (let i = 0; i < S.photos.length; i++) {
+    const p = S.photos[i]
+    try {
+      const path = p.full || p.thumb
+      if (!path) { fail++; continue }
+      const dataUrl = decodeSave(await window.api.readText(path))
+      const dest = dir + '/' + sanitizeFileName('photo_' + p.id) + '.png'
+      const r = await window.api.saveDataUrl(dest, dataUrl)
+      if (r) ok++; else fail++
+    } catch (_) { fail++ }
+    if ((i + 1) % 5 === 0 || i === S.photos.length - 1) showToast(`导出中（${i + 1}/${S.photos.length}）…`, 'busy')
+  }
+  showToast(fail ? `完成：成功 ${ok}，失败 ${fail}` : `成功导出 ${ok} 张`, fail ? 'error' : 'success')
+  setStatus(`批量导出完成：成功 ${ok} 张，失败 ${fail} 张 → ${dir}`)
+}
+function sanitizeFileName(n) { return String(n).replace(/[\\/:*?"<>|]/g, '_') }
 $('modal-close').onclick = () => $('modal').classList.add('hidden')
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden') })
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('modal').classList.add('hidden') })
