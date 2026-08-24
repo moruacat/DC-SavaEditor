@@ -65,6 +65,7 @@
             <button class="tab" data-tab="endings">结局</button>
             <button class="tab" data-tab="stickers">贴纸</button>
             <button class="tab" data-tab="vars">变量</button>
+            <button class="tab" data-tab="roles">角色</button>
             <button class="tab" data-tab="json">JSON</button>
           </div>
           <div id="sys-overview" class="tabpage active">
@@ -92,6 +93,14 @@
           <div id="sys-vars" class="tabpage">
             <input id="var-search" class="search-input" placeholder="🔍 搜索变量（名称 / 说明）…" />
             <div id="var-table" class="var-table"></div>
+          </div>
+          <div id="sys-roles" class="tabpage">
+            <div class="legend" style="flex-wrap:wrap">
+              <label>查看槽位：<select id="role-slot"></select></label>
+              <button id="role-save" class="btn primary">保存到槽位存档</button>
+              <label style="color:var(--muted)">（角色攻略变量来自槽位存档 stat.f，按角色分组）</label>
+            </div>
+            <div id="role-body"></div>
           </div>
           <div id="sys-json" class="tabpage">
             <input id="json-search" class="search-input" placeholder="🔍 在 JSON 中查找（Enter 跳到下一个）…" />

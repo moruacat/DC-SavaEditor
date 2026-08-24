@@ -500,6 +500,7 @@ function renderSystem() {
   initTabButtons()
   updateSaveBtn()
   updateNameHint()
+  renderRoles()
 }
 
 // 召唤师名字提示：实际名字存储在槽位存档 stat.f.name，系统存档 initialVars.name 为初始默认值
@@ -758,6 +759,98 @@ function initTabButtons() {
     moveTabIndicator() // 拖动被取消，回正
   })
 }
+
+// ================= 角色面板（槽位 stat.f 按角色分组） =================
+const SYS_ROLE_GROUPS = [
+  { prefix: 'bel_', name: '贝露娜 (bel)' },
+  { prefix: 'kupya_', name: '库啪 (kupya)' },
+  { prefix: 'lapis_', name: '拉皮斯 (lapis)' },
+  { prefix: 'maki_', name: '玛琪 (maki)' },
+  { prefix: 'marusu_', name: '玛尔斯 (marusu)' },
+  { prefix: 'neodebi_', name: '新魔王 (neodebi)' },
+  { prefix: 'zyagan', name: '智眼 (zyagan)' },
+  { prefix: 'syoukan', name: '召唤 (syoukan)' },
+]
+let roleSlotIdx = 0
+
+// 返回可用的槽位存档 data 数组（异步确保 S.slots 已加载）
+async function ensureSlotData() {
+  if (S.slots && S.slots.obj && Array.isArray(S.slots.obj.data)) return S.slots.obj.data
+  if (!S.dir) return null
+  try {
+    const entries = await window.api.listDir(S.dir)
+    const td = entries.find(e => e.name === 'DevilConnection_tyrano_data.sav')
+    if (td) {
+      const obj = decodeSave(await window.api.readText(td.full))
+      if (obj && Array.isArray(obj.data)) { S.slots = { path: td.full, obj }; return obj.data }
+    }
+  } catch (_) {}
+  return null
+}
+async function renderRoles() {
+  const body = $('role-body'), sel = $('role-slot')
+  if (!body || !sel) return
+  const data = await ensureSlotData()
+  if (!data) { body.innerHTML = '<div class="hint">未找到槽位存档（tyrano_data.sav），角色变量无法读取。请先打开含槽位存档的存档文件夹。</div>'; sel.innerHTML = ''; return }
+  // 填充槽位下拉
+  sel.innerHTML = data.map((s, i) => `<option value="${i}">${i + 1}. ${s.title || '(空)'}</option>`).join('')
+  const idx = Math.min(Math.max(roleSlotIdx, 0), data.length - 1)
+  roleSlotIdx = idx
+  sel.value = idx
+  renderRoleBody(data[idx])
+}
+function renderRoleBody(slot) {
+  const body = $('role-body'); if (!body) return
+  body.innerHTML = ''
+  const f = (slot && slot.stat && slot.stat.f) ? slot.stat.f : {}
+  let any = false
+  for (const g of SYS_ROLE_GROUPS) {
+    const keys = Object.keys(f).filter(k => k.startsWith(g.prefix)).sort()
+    if (!keys.length) continue
+    any = true
+    const block = el('div', 'role-group')
+    const head = el('div', 'role-group-title', g.name + `（${keys.length}）`)
+    block.appendChild(head)
+    const grid = el('div', 'var-table')
+    grid.appendChild(el('div', 'vt-head', '变量名'))
+    grid.appendChild(el('div', 'vt-head', '说明'))
+    grid.appendChild(el('div', 'vt-head', '值'))
+    keys.forEach(k => {
+      grid.appendChild(el('div', 'vt-name', k))
+      grid.appendChild(el('div', 'vt-desc', SLOT_VAR_DESC[k] || '攻略/事件标记'))
+      const cell = el('div', 'vt-val')
+      const inp = el('input')
+      inp.dataset.var = k
+      inp.dataset.vtype = typeof f[k] === 'number' ? 'int' : typeof f[k] === 'boolean' ? 'bool' : Array.isArray(f[k]) ? 'array' : 'str'
+      inp.value = fmtVarVal(f[k], inp.dataset.vtype)
+      cell.appendChild(inp)
+      grid.appendChild(cell)
+    })
+    block.appendChild(grid)
+    body.appendChild(block)
+  }
+  if (!any) body.innerHTML = '<div class="hint">当前槽位 stat.f 未匹配到已知角色变量。</div>'
+}
+// 保存角色面板：把编辑写回所选槽位 stat.f，并写回槽位存档文件
+$('role-save').onclick = async () => {
+  if (!(S.slots && S.slots.obj && Array.isArray(S.slots.obj.data))) { showToast('请先打开槽位存档', 'error'); return }
+  const data = S.slots.obj.data
+  const idx = roleSlotIdx
+  const slot = data[idx]
+  if (!slot) { showToast('槽位不存在', 'error'); return }
+  slot.stat = slot.stat || {}; slot.stat.f = slot.stat.f || {}
+  document.querySelectorAll('#role-body input[data-var]').forEach(inp => {
+    slot.stat.f[inp.dataset.var] = parseVal(inp.value, inp.dataset.vtype)
+  })
+  await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
+  showToast('角色变量已保存到槽位存档', 'success')
+  renderRoleBody(slot)
+}
+$('role-slot').addEventListener('change', e => {
+  roleSlotIdx = +e.target.value
+  const data = S.slots && S.slots.obj && S.slots.obj.data
+  if (data && data[roleSlotIdx]) renderRoleBody(data[roleSlotIdx])
+})
 
 // ================= 槽位存档 =================
 const SLOT_HINT =

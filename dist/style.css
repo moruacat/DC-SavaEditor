@@ -365,6 +365,8 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 .var-table.compact { grid-template-columns: minmax(120px, 1fr) 1.2fr; }
 .var-table.compact .vt-group { grid-column: 1 / -1; }
 .var-table.compact .vt-desc { display: none; }
+.role-group { margin-bottom: 10px; }
+.role-group-title { font-weight: 600; color: var(--primary); padding: 4px 0 2px; font-size: 13px; }
 
 /* ---------- 照片网格 ---------- */
 .grid { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; overflow-y: auto; padding-bottom: 12px; }
