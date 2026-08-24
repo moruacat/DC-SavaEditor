@@ -1079,6 +1079,71 @@ $('btn-open').onclick = async () => {
 }
 $('btn-refresh').onclick = async () => { if (S.dir) await openDir(S.dir) }
 $('btn-save').onclick = saveAll
+
+// 备份：把存档目录复制到 backup/<时间戳>
+$('btn-backup').onclick = async () => {
+  if (!S.dir) { showToast('请先打开存档文件夹', 'error'); return }
+  const dest = await window.api.backup(S.dir)
+  if (dest) { showToast('已备份到 backup/' + pathBase(dest), 'success'); setStatus('已备份: ' + dest) }
+  else showToast('备份失败', 'error')
+}
+// 还原：列出 backup/ 供选择
+$('btn-restore').onclick = async () => {
+  if (!S.dir) { showToast('请先打开存档文件夹', 'error'); return }
+  const list = await window.api.listBackups(S.dir)
+  const box = $('restore-list')
+  box.innerHTML = ''
+  if (!list.length) { box.textContent = 'backup/ 下暂无备份。'; $('restore-modal').classList.remove('hidden'); return }
+  const fmtBackup = n => { const t = +n; if (!t || isNaN(t)) return n; const d = new Date(t * 1000); const p = x => String(x).padStart(2, '0'); return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` }
+  for (const name of list) {
+    const row = el('div', 'file-item')
+    row.innerHTML = `<span class="fname">${fmtBackup(name)}</span><span class="fsize">${name}</span>`
+    row.addEventListener('click', async () => {
+      if (!confirm('确定用该备份覆盖当前存档文件夹？建议先再备份一次。')) return
+      const ok = await window.api.restore(S.dir, name)
+      if (ok) {
+        $('restore-modal').classList.add('hidden')
+        showToast('已还原', 'success')
+        await openDir(S.dir)
+      } else showToast('还原失败', 'error')
+    })
+    box.appendChild(row)
+  }
+  $('restore-modal').classList.remove('hidden')
+}
+$('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
+
+// 导出系统存档（解码为明文 JSON）
+$('btn-export').onclick = async () => {
+  if (!S.system) { showToast('请先打开系统存档', 'error'); return }
+  try {
+    collectSystem()
+    const content = JSON.stringify(S.system.obj, null, 2)
+    const ok = await window.api.saveText(content, (S.system.appName || 'DevilConnection_sf') + '.json')
+    if (ok) showToast('已导出明文 JSON', 'success')
+  } catch (e) { showToast('导出失败: ' + e.message, 'error') }
+}
+// 导入明文 JSON 并载入系统存档
+$('btn-import').onclick = async () => {
+  const res = await window.api.openText()
+  if (!res) return
+  try {
+    const obj = JSON.parse(res.text)
+    if (!(obj && typeof obj === 'object' && 'initialVars' in obj)) { showToast('不是系统存档结构', 'error'); return }
+    if (!S.system) { S.system = { path: S.dir + '/DevilConnection_sf.sav', obj, orig: deepClone(obj) } }
+    else { S.system.obj = obj; S.system.orig = deepClone(obj) }
+    S.currentPanel = 'system'
+    renderSystem()
+    showPanel('system')
+    setStatus('已导入并载入系统存档: ' + res.name)
+    showToast('已导入', 'success')
+  } catch (e) { showToast('导入解析失败: ' + e.message, 'error') }
+}
+
+function pathBase(p) {
+  p = String(p).replace(/\\/g, '/')
+  return p.split('/').filter(Boolean).pop() || p
+}
 // 刷新已渲染的贴纸缩略图（用于重新指定资源目录后）
 function refreshStickerThumbs() {
   document.querySelectorAll('#stick-grid img').forEach(img => {

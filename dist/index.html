@@ -16,6 +16,10 @@
     <button id="btn-resource" class="btn">资源目录</button>
     <span id="res-label" class="path-label small"></span>
     <span class="spacer"></span>
+    <button id="btn-backup" class="btn" title="备份整个存档文件夹到 backup/">🗜 备份</button>
+    <button id="btn-restore" class="btn" title="从 backup/ 还原存档">↩ 还原</button>
+    <button id="btn-export" class="btn" title="解码并导出当前系统存档为明文 JSON">⬇ 导出</button>
+    <button id="btn-import" class="btn" title="导入明文 JSON 并载入系统存档">⬆ 导入</button>
     <button id="btn-theme" class="btn" title="切换深色/浅色模式">🌙 深色</button>
     <button id="btn-anim" class="btn" title="切换界面动画（回弹/弹跳/平滑过渡）">🎬 动画</button>
     <button id="btn-save" class="btn primary" disabled>保存</button>
@@ -115,6 +119,14 @@
         <button id="modal-close" class="btn">关闭</button>
       </div>
       <div class="modal-body"><img id="modal-img" alt="" /></div>
+    </div>
+  </div>
+
+  <!-- 还原备份模态 -->
+  <div id="restore-modal" class="modal hidden">
+    <div class="modal-box" style="width:420px;max-width:92vw">
+      <div class="modal-bar"><span>从备份还原</span><button id="restore-close" class="btn">关闭</button></div>
+      <div class="modal-body"><div id="restore-list"></div></div>
     </div>
   </div>
 

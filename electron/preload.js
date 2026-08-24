@@ -12,4 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   defaultStorage: () => ipcRenderer.invoke('fs:defaultStorage'),
   resourceRoots: () => ipcRenderer.invoke('res:roots'),
   addResourceRoot: dir => ipcRenderer.invoke('res:addRoot', dir),
+  saveText: (content, name) => ipcRenderer.invoke('fs:saveText', content, name),
+  openText: () => ipcRenderer.invoke('fs:openText'),
+  backup: dir => ipcRenderer.invoke('fs:backup', dir),
+  listBackups: dir => ipcRenderer.invoke('fs:listBackups', dir),
+  restore: (dir, name) => ipcRenderer.invoke('fs:restore', dir, name),
 })

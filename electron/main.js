@@ -163,3 +163,67 @@ ipcMain.handle('res:addRoot', (_e, dir) => {
   if (dir && !userResourceRoots.includes(dir)) userResourceRoots.push(dir)
   return userResourceRoots
 })
+
+// 导出文本（明文 JSON）到保存对话框
+ipcMain.handle('fs:saveText', async (_e, content, defaultName) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: '导出',
+    defaultPath: defaultName || 'system.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  })
+  if (canceled || !filePath) return false
+  fs.writeFileSync(filePath, content, 'utf-8')
+  return true
+})
+
+// 导入：打开对话框读文本，返回 {text, name} 或 null
+ipcMain.handle('fs:openText', async () => {
+  const r = await dialog.showOpenDialog(win, {
+    title: '导入',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  })
+  if (r.canceled || !r.filePaths[0]) return null
+  const filePath = r.filePaths[0]
+  return { text: fs.readFileSync(filePath, 'utf-8'), name: path.basename(filePath) }
+})
+
+// 递归复制目录
+function copyDirSync(src, dst) {
+  fs.mkdirSync(dst, { recursive: true })
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, entry.name)
+    const to = path.join(dst, entry.name)
+    if (entry.isDirectory()) copyDirSync(from, to)
+    else fs.copyFileSync(from, to)
+  }
+}
+
+// 备份存档目录到其父级 backup/<时间戳>
+ipcMain.handle('fs:backup', (_e, storageDir) => {
+  if (!fs.existsSync(storageDir) || !fs.statSync(storageDir).isDirectory()) return null
+  const backupRoot = path.join(path.dirname(storageDir), 'backup')
+  const ts = String(Math.floor(Date.now() / 1000))
+  const dest = path.join(backupRoot, ts)
+  copyDirSync(storageDir, dest)
+  return dest
+})
+
+// 列出 backup/ 下的备份（名字倒序）
+ipcMain.handle('fs:listBackups', (_e, storageDir) => {
+  const backupRoot = path.join(path.dirname(storageDir), 'backup')
+  try {
+    return fs.readdirSync(backupRoot, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .sort().reverse()
+  } catch (_) { return [] }
+})
+
+// 还原备份到存档目录
+ipcMain.handle('fs:restore', (_e, storageDir, backupName) => {
+  const src = path.join(path.dirname(storageDir), 'backup', backupName)
+  if (!fs.existsSync(src) || !fs.statSync(src).isDirectory()) return false
+  copyDirSync(src, storageDir)
+  return true
+})

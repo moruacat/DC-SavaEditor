@@ -188,6 +188,101 @@ fn pick_dir(app: tauri::AppHandle) -> Result<Option<String>, String> {
     Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.to_string_lossy().into_owned()))
 }
 
+// 弹出「导出」保存对话框并写入文本（如明文 JSON），返回是否成功
+#[tauri::command]
+fn save_text_dialog(app: tauri::AppHandle, content: String, default_name: String) -> Result<bool, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name(default_name)
+        .set_title("导出")
+        .blocking_save_file();
+    let Some(path) = picked else { return Ok(false) };
+    let Ok(path) = path.into_path() else { return Ok(false) };
+    fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+// 弹出「导入」打开对话框并读文本，返回 {text, name}（JSON 字符串）或 null
+#[tauri::command]
+fn open_text_dialog(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_title("导入")
+        .blocking_pick_file();
+    let Some(path) = picked else { return Ok(None) };
+    let Ok(path) = path.into_path() else { return Ok(None) };
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    Ok(Some(json!({ "text": text, "name": name }).to_string()))
+}
+
+// 递归复制目录
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        if from.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+        } else {
+            fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
+}
+
+// 备份目录：把 storage_dir 复制到其父级下的 backup/<时间戳>/
+#[tauri::command]
+fn backup_storage(storage_dir: String) -> Result<Option<String>, String> {
+    let src = Path::new(&storage_dir);
+    if !src.is_dir() { return Ok(None) }
+    let parent = src.parent().ok_or_else(|| "no parent".to_string())?;
+    let backup_root = parent.join("backup");
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs().to_string())
+        .unwrap_or_else(|_| "backup".to_string());
+    let dest = backup_root.join(&ts);
+    copy_dir_recursive(src, &dest).map_err(|e| e.to_string())?;
+    Ok(Some(dest.to_string_lossy().into_owned()))
+}
+
+// 列出 storage_dir 同级 backup/ 下的备份（按名字倒序）
+#[tauri::command]
+fn list_backups(storage_dir: String) -> Vec<String> {
+    let src = Path::new(&storage_dir);
+    let Some(parent) = src.parent() else { return Vec::new() };
+    let backup_root = parent.join("backup");
+    let Ok(entries) = fs::read_dir(&backup_root) else { return Vec::new() };
+    let mut dirs: Vec<String> = entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    dirs.sort();
+    dirs.reverse();
+    dirs
+}
+
+// 还原：把 backup/<name>/ 的内容复制回 storage_dir（覆盖同名、保留其他）
+#[tauri::command]
+fn restore_storage(storage_dir: String, backup_name: String) -> Result<bool, String> {
+    let src = Path::new(&storage_dir).parent()
+        .map(|p| p.join("backup").join(&backup_name))
+        .ok_or_else(|| "no parent".to_string())?;
+    if !src.is_dir() { return Ok(false) }
+    copy_dir_recursive(&src, Path::new(&storage_dir)).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -202,7 +297,12 @@ pub fn run() {
             default_storage_dir,
             save_data_url,
             save_image_dialog,
-            pick_dir
+            pick_dir,
+            save_text_dialog,
+            open_text_dialog,
+            backup_storage,
+            list_backups,
+            restore_storage
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

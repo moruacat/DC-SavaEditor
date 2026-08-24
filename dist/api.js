@@ -14,6 +14,11 @@
       defaultStorage: () => window.__TAURI__.core.invoke('default_storage_dir'),
       resourceRoots: () => window.__TAURI__.core.invoke('resource_roots_cmd'),
       addResourceRoot: dir => window.__TAURI__.core.invoke('add_resource_root', { dir }),
+      saveText: (content, name) => window.__TAURI__.core.invoke('save_text_dialog', { content, defaultName: name }),
+      openText: () => window.__TAURI__.core.invoke('open_text_dialog'),
+      backup: dir => window.__TAURI__.core.invoke('backup_storage', { storageDir: dir }),
+      listBackups: dir => window.__TAURI__.core.invoke('list_backups', { storageDir: dir }),
+      restore: (dir, name) => window.__TAURI__.core.invoke('restore_storage', { storageDir: dir, backupName: name }),
     }
   } else if (window.electronAPI) {
     // ---------- Electron 后端（由 preload.js 通过 contextBridge 注入） ----------
