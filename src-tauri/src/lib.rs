@@ -295,9 +295,8 @@ fn delete_file(path: String) -> Result<bool, String> {
 
 // 重启应用（切换语言等需要完全刷新界面的场景）
 #[tauri::command]
-fn restart_app(app: tauri::AppHandle) -> Result<(), String> {
+fn restart_app(app: tauri::AppHandle) {
     app.restart();
-    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
