@@ -1115,7 +1115,7 @@ $('restore-close').onclick = () => $('restore-modal').classList.add('hidden')
 
 // ---------- 检查更新（GitHub Releases） ----------
 const APP_VERSION = '0.1.1'
-const UPDATE_REPO = 'morucat/DC-SavaEditor' // 由环境覆盖
+const UPDATE_REPO = 'moruacat/DC-SavaEditor'
 function versionCmp(a, b) {
   // a > b 返回 1，a < b 返回 -1，相等 0
   const pa = String(a).replace(/^[vV]/,'').split('.').map(n => parseInt(n, 10) || 0)
@@ -1131,7 +1131,7 @@ $('btn-update').onclick = async () => {
   const btn = $('btn-update')
   btn.textContent = '⌛ 检查中…'
   try {
-    const res = await fetch('https://api.github.com/repos/morucat/DC-SavaEditor/releases/latest')
+    const res = await fetch(`https://api.github.com/repos/${UPDATE_REPO}/releases/latest`)
     if (!res.ok) throw new Error('HTTP ' + res.status)
     const data = await res.json()
     const latest = data.tag_name || ''
