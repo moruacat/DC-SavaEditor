@@ -448,7 +448,12 @@ function esc(s) {
 }
 
 // 变量表渲染
-function renderVarTable(container, data, compact) {
+function renderVarTable(container, data, compact, descMap) {
+  // 槽位 stat.f 变量表：用专用说明字典，说明放悬停 title，不含全局分组
+  if (compact && descMap) {
+    renderCompactSlots(container, data, descMap)
+    return
+  }
   container.innerHTML = ''
   const addHead = () => {
     if (compact) {
@@ -497,6 +502,28 @@ function fmtVarVal(v, type) {
   if (v === undefined || v === null) return ''
   if (type === 'array') return Array.isArray(v) ? v.join(', ') : String(v)
   return String(v)
+}
+
+// 槽位 stat.f 变量表（两列：变量名 + 值），说明显示在变量名悬停
+function renderCompactSlots(container, data, descMap) {
+  container.innerHTML = ''
+  container.appendChild(el('div', 'vt-head', '变量名'))
+  container.appendChild(el('div', 'vt-head', '值'))
+  const keys = Object.keys(data || {}).sort()
+  for (const k of keys) {
+    const name = el('div', 'vt-name', k)
+    const d = descMap[k]
+    name.title = d ? `${k} — ${d}` : `游戏运行时变量 f.${k}（含义未收录，请谨慎修改）`
+    container.appendChild(name)
+    const cell = el('div', 'vt-val')
+    const inp = el('input')
+    inp.dataset.var = k
+    inp.dataset.vtype =
+      typeof data[k] === 'number' ? 'int' : typeof data[k] === 'boolean' ? 'bool' : Array.isArray(data[k]) ? 'array' : 'str'
+    inp.value = fmtVarVal(data[k], inp.dataset.vtype)
+    cell.appendChild(inp)
+    container.appendChild(cell)
+  }
 }
 
 // 选择器定位：必须等面板显示（offsetLeft/offsetWidth 可用）后再调用，否则会定位到 0 而消失
@@ -618,11 +645,78 @@ const SLOT_META_DEF = [
   ['phase_file', '阶段图', '背景/阶段图资源路径，用于缩略图预览'],
 ]
 
+// 槽位存档 stat.f 变量说明（悬停在变量名上显示）。未收录的变量为游戏运行时标记，通用提示。
+const SLOT_VAR_DESC = {
+  name: '召唤师名字（昵称），修改后游戏内生效',
+  seibetu: '性别（1 男 / 2 女）',
+  day: '当前天数',
+  day_epilogue: '尾声（战后）天数',
+  script: '当前剧情脚本进度',
+  phrase: '当前台词',
+  chara: '当前操控/跟随角色',
+  charaFile: '当前角色立绘文件（data/image/<file>）',
+  currentCharacters: '当前同行角色数组',
+  characters: '已收集角色数组',
+  memberCount: '队伍（同行）人数',
+  mp: '当前魔力',
+  mp_max: '魔力上限',
+  totalMP: '累计获得的魔力',
+  kill: '狂信徒线标记（>0 进入狂信徒路线）',
+  autoSave: '自动存档标记',
+  judge: '上一判定（perfect / good / bad）',
+  currentLoop: '当前周目数',
+  previousEnding: '上一个触发的结局 ID',
+  ransuu: '随机数（部分演出用）',
+  debiName: '魔王名字',
+  hint: '提示信息标记',
+  hintIdx: '提示索引',
+  syo: '召唤相关标记',
+  goal: '终点/目标标记',
+  koukai_kidoku: '告白场景已读',
+  coronation: '加冕相关标记',
+  lapis: '拉皮斯（宝石道具）数量',
+  lapis_clear: '拉皮斯线通关标记',
+  lapis_watasu: '拉皮斯相关交付标记',
+  jewelry: '宝石类道具标记',
+  yubiwa: '戒指道具标记',
+  crown: '皇冠道具标记',
+  tuno: '角道具标记',
+  ruby: '红宝石道具标记',
+  sign: '表/印记道具标记',
+  ting: '记录铃铛道具标记',
+  ne: '猫妖“ね”相关标记',
+  kupya_tap: '库啪点击次数',
+  kupya_inori: '库啪祈祷标记',
+  kupya_meteor: '库啪流星事件标记',
+  zyagan_count: '智眼累计次数',
+  zyagan1_search: '智眼·第1次搜索标记',
+  zyagan2_search: '智眼·第2次搜索标记',
+  zyagan3_search: '智眼·第3次搜索标记',
+}
+
+// 槽位存档提示条：可关闭，关闭后记住不再显示（localStorage）
+function renderSlotHint() {
+  const hint = $('slot-hint')
+  if (!hint) return
+  let closed = false
+  try { closed = localStorage.getItem('dc-slot-hint-closed') === '1' } catch (_) {}
+  if (closed) { hint.style.display = 'none'; return }
+  hint.style.display = ''
+  hint.innerHTML = SLOT_HINT
+  const closeBtn = el('span', 'slot-hint-close', '✕')
+  closeBtn.title = '不再显示此提示'
+  closeBtn.onclick = () => {
+    hint.style.display = 'none'
+    try { localStorage.setItem('dc-slot-hint-closed', '1') } catch (_) {}
+  }
+  hint.appendChild(closeBtn)
+}
+
 function loadSlots(path, obj) {
   S.slots = { path, obj }
   S.activeEntry = { path, kind: 'slots' }
   S.currentPanel = 'slots'
-  $('slot-hint').innerHTML = SLOT_HINT
+  renderSlotHint()
   renderSlotGrid()
   if (obj.data && obj.data.length) selectSlot(0)
   showPanel('slots')
@@ -681,14 +775,14 @@ function selectSlot(idx) {
     metaBox.appendChild(f)
   }
   const f = slot.stat && slot.stat.f ? slot.stat.f : {}
-  renderVarTable($('slot-vars'), f, true)
+  renderVarTable($('slot-vars'), f, true, SLOT_VAR_DESC)
 }
 
 // ================= 快速/自动存档（单存档） =================
 function loadSingle(path, obj) {
   S.slots = { path, obj, single: true }
   S.activeEntry = { path, kind: 'single' }
-  $('slot-hint').innerHTML = SLOT_HINT
+  renderSlotHint()
   // 复用槽位视图
   const grid = $('slot-grid')
   grid.innerHTML = ''
@@ -717,7 +811,7 @@ function loadSingle(path, obj) {
     metaBox.appendChild(f)
   }
   const f = obj.stat && obj.stat.f ? obj.stat.f : {}
-  renderVarTable($('slot-vars'), f, true)
+  renderVarTable($('slot-vars'), f, true, SLOT_VAR_DESC)
   showPanel('slots')
 }
 

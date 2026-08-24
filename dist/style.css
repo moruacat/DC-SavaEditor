@@ -257,6 +257,11 @@ body {
   border-radius: var(--r-md); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; line-height: 1.7;
 }
 .hint b { color: var(--hint-strong); }
+.slot-hint-close {
+  float: right; cursor: pointer; margin-left: 10px; opacity: .7;
+  font-weight: 600; font-size: 14px; user-select: none;
+}
+.slot-hint-close:hover { opacity: 1; }
 
 /* ---------- 表单 ---------- */
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px 14px; }

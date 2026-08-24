@@ -11,6 +11,7 @@
 
 - **系统存档**编辑：概览字段、结局图鉴解锁/收集、贴纸解锁、全局变量表、原始 JSON 编辑
 - **槽位存档**（数量动态增长，最多 600）与**快速/自动存档**编辑：标题、保存时间、脚本索引、副标题、阶段图；召唤师名字存储在 `stat.f.name`
+- **槽位变量说明**：`stat.f` 关键变量带悬停说明（名字、天数、魔力、周目、各角色/道具标记等），未知变量提示谨慎修改；顶部提示条可一键关闭并记住选择
 - **游戏照片**预览与导出（dataURL 存档解码）
 - 从游戏解包资源自动提取**贴纸**、**阶段图**缩略图预览
 - UI：Android 15 / Material 3 风格、主题色 `#1585C0`、深色模式、WinUI3 风格圆角复选框、磁吸式选项卡、可开关动画
@@ -64,6 +65,10 @@ dist/        前端（index.html / style.css / renderer.js / api.js / data.js）
 electron/    Electron 主进程与预加载脚本
 src-tauri/   Tauri Rust 后端与配置
 ```
+
+## 相关项目
+
+- [Hxueit/Devil-Connection-Sav-Manager](https://github.com/Hxueit/Devil-Connection-Sav-Manager)：Python 版《でびるコネクショん》存档管理器（备份/还原、槽位增删改排、运行时修改等，功能更全）。本项目受其「为结局/贴纸等提供取值说明列表」的启发，为槽位 `stat.f` 变量补充了悬停说明；两者为独立项目，未复用其代码。
 
 ## 技术栈
 
