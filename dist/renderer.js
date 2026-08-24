@@ -346,17 +346,21 @@ function renderSystem() {
     f.appendChild(inp)
     jBox.appendChild(f)
   }
-  // 列表
+  // 列表（逗号分隔，长文本自动增高）
   const lBox = $('list-fields')
   lBox.innerHTML = ''
   for (const key of SYS_LIST_KEYS) {
     const f = el('div', 'field')
     f.appendChild(el('label', null, key))
-    const inp = el('input')
-    inp.dataset.key = key
-    inp.dataset.field = 'list'
-    inp.value = Array.isArray(m[key]) ? m[key].join(', ') : (m[key] || '')
-    f.appendChild(inp)
+    const ta = document.createElement('textarea')
+    ta.dataset.key = key
+    ta.dataset.field = 'list'
+    ta.dataset.bind = 'grow' // 复用自动增高逻辑
+    ta.rows = 1
+    ta.className = 'auto-grow'
+    ta.value = Array.isArray(m[key]) ? m[key].join(', ') : (m[key] || '')
+    bindAutoGrow(ta)
+    f.appendChild(ta)
     lBox.appendChild(f)
   }
   // 结局
@@ -920,7 +924,7 @@ function collectSystem() {
     }
   })
   // 列表
-  document.querySelectorAll('#list-fields input').forEach(inp => {
+  document.querySelectorAll('#list-fields input, #list-fields textarea').forEach(inp => {
     const key = inp.dataset.key
     const ov = Array.isArray(orig[key]) ? orig[key].join(', ') : (orig[key] || '')
     if (inp.value !== ov) {
@@ -1015,6 +1019,23 @@ function showToast(msg, type) {
   if (toastTimer) clearTimeout(toastTimer)
   if (type === 'busy') return // 保存中持续显示
   toastTimer = setTimeout(() => { t.className = 'toast hidden' }, 2200)
+}
+
+// 文本域自动增高：编辑时随内容变高（动画），失焦收起回单行
+function bindAutoGrow(ta) {
+  const grow = () => {
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px'
+  }
+  const collapse = () => {
+    ta.style.height = ''
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight + 2, 220) + 'px' // 保底：内容本来就很长则保留
+    if (ta.scrollHeight <= 30) ta.style.height = ''
+  }
+  ta.addEventListener('focus', grow)
+  ta.addEventListener('input', grow)
+  ta.addEventListener('blur', collapse)
 }
 
 // ================= 工具函数 =================

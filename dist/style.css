@@ -303,6 +303,14 @@ body {
   background: var(--input-bg); color: var(--text);
   transition: border-color .18s ease;
 }
+.form-grid textarea.auto-grow {
+  flex: 1; padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: var(--r-sm);
+  font-size: 13px; min-width: 60px; resize: none; overflow: hidden;
+  background: var(--input-bg); color: var(--text);
+  line-height: 1.4; font-family: inherit;
+  transition: border-color .18s ease, height .2s ease;
+}
+.form-grid textarea.auto-grow:focus { outline: none; border-color: var(--primary); }
 .form-grid input:focus { outline: none; border-color: var(--primary); }
 h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
 .legend { margin-bottom: 10px; display: flex; gap: 18px; }
