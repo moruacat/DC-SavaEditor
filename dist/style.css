@@ -250,6 +250,14 @@ body {
 .tabpage { display: none; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; }
 .tabpage.active { display: flex; }
 .tabpage.anim-in { animation: fadeUp .22s ease; }
+.search-input {
+  width: 100%; padding: 7px 12px; margin-bottom: 10px;
+  border: 1px solid var(--border-soft); border-radius: var(--r-md);
+  background: var(--input-bg); color: var(--text); font-size: 13px;
+  transition: border-color .18s ease;
+}
+.search-input:focus { outline: none; border-color: var(--primary); }
+.search-input.small { margin-bottom: 8px; }
 
 /* ---------- 提示条 ---------- */
 .hint {
@@ -382,6 +390,7 @@ h4 { margin: 16px 0 10px; color: var(--text); font-weight: 500; }
   font-family: Consolas, monospace; font-size: 12px;
   border: 1px solid var(--border-soft); border-radius: var(--r-md); padding: 12px; resize: none;
   background: var(--input-bg); color: var(--text);
+  transition: height .22s ease;
 }
 
 /* ---------- 模态 ---------- */

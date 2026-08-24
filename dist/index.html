@@ -76,9 +76,11 @@
             <div class="stick-grid" id="stick-grid"></div>
           </div>
           <div id="sys-vars" class="tabpage">
+            <input id="var-search" class="search-input" placeholder="🔍 搜索变量（名称 / 说明）…" />
             <div id="var-table" class="var-table"></div>
           </div>
           <div id="sys-json" class="tabpage">
+            <input id="json-search" class="search-input" placeholder="🔍 在 JSON 中查找（Enter 跳到下一个）…" />
             <textarea id="json-editor" spellcheck="false"></textarea>
           </div>
         </div>
@@ -86,11 +88,13 @@
         <!-- 槽位存档面板 -->
         <div id="panel-slots" class="panel">
           <div id="slot-hint" class="hint"></div>
+          <input id="slot-search" class="search-input" placeholder="🔍 搜索槽位（标题 / 文本）…" />
           <div class="slot-layout">
             <div class="slot-grid" id="slot-grid"></div>
             <div id="slot-detail" class="slot-detail">
               <div class="form-grid" id="slot-meta"></div>
               <h4>stat.f 变量</h4>
+              <input id="slot-var-search" class="search-input small" placeholder="🔍 搜索变量…" />
               <div id="slot-vars" class="var-table"></div>
             </div>
           </div>

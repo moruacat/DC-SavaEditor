@@ -518,19 +518,24 @@ function renderVarTable(container, data, compact, descMap) {
     }
   }
   addHead()
+  let ri = 0
   for (const g of VAR_GROUPS) {
     container.appendChild(el('div', 'vt-group', '—— ' + g + ' ——'))
     for (const [name, [desc, grp, type]] of Object.entries(VAR_INFO)) {
       if (grp !== g) continue
-      container.appendChild(el('div', 'vt-name', name))
-      if (!compact) container.appendChild(el('div', 'vt-desc', desc))
+      const nEl = el('div', 'vt-name', name)
+      nEl.dataset.r = ri
+      container.appendChild(nEl)
+      if (!compact) { const dEl = el('div', 'vt-desc', desc); dEl.dataset.r = ri; container.appendChild(dEl) }
       const cell = el('div', 'vt-val')
+      cell.dataset.r = ri
       const inp = el('input')
       inp.dataset.var = name
       inp.dataset.vtype = type
       inp.value = fmtVarVal(data[name], type)
       cell.appendChild(inp)
       container.appendChild(cell)
+      ri++
     }
   }
   // 数据中存在但字典未收录的变量
@@ -538,15 +543,19 @@ function renderVarTable(container, data, compact, descMap) {
   if (extra.length) {
     container.appendChild(el('div', 'vt-group', '—— 其它（字典未收录） ——'))
     for (const k of extra) {
-      container.appendChild(el('div', 'vt-name', k))
-      if (!compact) container.appendChild(el('div', 'vt-desc', ''))
+      const nEl = el('div', 'vt-name', k)
+      nEl.dataset.r = ri
+      container.appendChild(nEl)
+      if (!compact) { const dEl = el('div', 'vt-desc', ''); dEl.dataset.r = ri; container.appendChild(dEl) }
       const cell = el('div', 'vt-val')
+      cell.dataset.r = ri
       const inp = el('input')
       inp.dataset.var = k
       inp.dataset.vtype = typeof data[k] === 'number' ? 'int' : typeof data[k] === 'boolean' ? 'bool' : (Array.isArray(data[k]) ? 'array' : 'str')
       inp.value = fmtVarVal(data[k], inp.dataset.vtype)
       cell.appendChild(inp)
       container.appendChild(cell)
+      ri++
     }
   }
 }
@@ -563,10 +572,15 @@ function renderCompactSlots(container, data, descMap) {
   container.appendChild(el('div', 'vt-head', '说明'))
   container.appendChild(el('div', 'vt-head', '值'))
   const keys = Object.keys(data || {}).sort()
-  for (const k of keys) {
-    container.appendChild(el('div', 'vt-name', k))
-    container.appendChild(el('div', 'vt-desc', descMap[k] || '游戏运行时变量 f.' + k + '（含义未收录，请谨慎修改）'))
+  keys.forEach((k, i) => {
+    const nEl = el('div', 'vt-name', k)
+    nEl.dataset.r = i
+    container.appendChild(nEl)
+    const dEl = el('div', 'vt-desc', descMap[k] || '游戏运行时变量 f.' + k + '（含义未收录，请谨慎修改）')
+    dEl.dataset.r = i
+    container.appendChild(dEl)
     const cell = el('div', 'vt-val')
+    cell.dataset.r = i
     const inp = el('input')
     inp.dataset.var = k
     inp.dataset.vtype =
@@ -574,7 +588,24 @@ function renderCompactSlots(container, data, descMap) {
     inp.value = fmtVarVal(data[k], inp.dataset.vtype)
     cell.appendChild(inp)
     container.appendChild(cell)
-  }
+  })
+}
+
+// 按 名称/说明/值 过滤变量表（隐藏不匹配行）；继续未匹配行号分组的可见性
+function filterVarRows(container, query) {
+  query = (query || '').trim().toLowerCase()
+  const rows = new Map()
+  container.querySelectorAll('[data-r]').forEach(el => {
+    const r = el.dataset.r
+    if (!rows.has(r)) rows.set(r, { els: [], matched: false })
+    const row = rows.get(r)
+    row.els.push(el)
+    if ((el.textContent || '').toLowerCase().includes(query)) row.matched = true
+  })
+  rows.forEach(row => {
+    const hide = !row.matched
+    row.els.forEach(e => { e.style.display = hide ? 'none' : '' })
+  })
 }
 
 // 选择器定位：必须等面板显示（offsetLeft/offsetWidth 可用）后再调用，否则会定位到 0 而消失
@@ -1033,6 +1064,49 @@ $('btn-resource').onclick = async () => {
 $('modal-close').onclick = () => $('modal').classList.add('hidden')
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden') })
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('modal').classList.add('hidden') })
+
+// ---------- 字段搜索 ----------
+$('var-search').addEventListener('input', e => filterVarRows($('var-table'), e.target.value))
+$('slot-var-search').addEventListener('input', e => filterVarRows($('slot-vars'), e.target.value))
+$('slot-search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase()
+  document.querySelectorAll('.slot-card').forEach(c => {
+    c.style.display = (!q || (c.textContent || '').toLowerCase().includes(q)) ? '' : 'none'
+  })
+})
+// JSON 查找：Enter 跳到下一个匹配
+let jsonSearchIdx = 0
+$('json-search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return
+  const ed = $('json-editor')
+  const q = $('json-search').value
+  if (!q) { setStatus(''); return }
+  const val = ed.value.toLowerCase()
+  const needle = q.toLowerCase()
+  let idx = val.indexOf(needle, jsonSearchIdx)
+  if (idx === -1) idx = val.indexOf(needle) // 回绕
+  if (idx === -1) { setStatus('JSON 中未找到: ' + q); jsonSearchIdx = 0; return }
+  jsonSearchIdx = idx + needle.length
+  ed.focus()
+  ed.setSelectionRange(idx, idx + needle.length)
+  const line = val.slice(0, idx).split('\n').length
+  ed.scrollTop = Math.max(0, (line - 4) * 18)
+  setStatus(`JSON 匹配（第 ${line} 行）`)
+})
+// 过滤 JSON 匹配：未匹配行禁用编辑态（仅提示）
+$('json-search').addEventListener('input', () => { jsonSearchIdx = 0 })
+
+// ---------- JSON 编辑器自动变大（编辑时增高，失焦收起） ----------
+const jsonEd = $('json-editor')
+jsonEd.addEventListener('focus', () => jsonEd.classList.add('growing'))
+jsonEd.addEventListener('input', () => {
+  jsonEd.style.height = 'auto'
+  jsonEd.style.height = Math.min(jsonEd.scrollHeight, 520) + 'px'
+})
+jsonEd.addEventListener('blur', () => {
+  jsonEd.classList.remove('growing')
+  jsonEd.style.height = ''
+})
 
 // JSON 应用按钮
 {
