@@ -549,12 +549,22 @@ function applyFanaticTheme() {
 }
 
 // ================= 角色图鉴（sf.collectedCharacters 勾选） =================
+// 游戏 collection.js 会把旧存档里的「D・RED」统一成「D・Red」，这里同步处理，
+// 避免按全集过滤写回时丢掉该角色。
+const normCharaName = n => (n === 'D・RED' ? 'D・Red' : n)
 function renderRolePedia() {
   const m = S.system.obj
   const grid = $('rolepedia-grid')
   if (!grid) return
   grid.innerHTML = ''
-  const cur = new Set(String(m.collectedCharacters || []).split(',').filter(Boolean))
+  // 勾选状态取 collectedCharacters ∪ characters：
+  // 游戏侧的 collect_character 只有在角色未出现在 sf.characters 时才会把他补进
+  // sf.collectedCharacters，因此历史上被旧版编辑器从收集表误删的条目
+  // （如旧数据把「ライ」写成了「シャイ」）需要在这里自动补回。
+  const cur = new Set([
+    ...String(m.collectedCharacters || '').split(',').filter(Boolean).map(normCharaName),
+    ...String(m.characters || '').split(',').filter(Boolean).map(normCharaName),
+  ])
   ROLE_LIB.forEach((name, i) => {
     const label = el('label')
     label.title = name.trim() ? name : '（空白占位项）'
@@ -568,7 +578,7 @@ function renderRolePedia() {
     label.appendChild(el('span', null, name.trim() ? name : '·空·'))
     grid.appendChild(label)
   })
-  $('rolepedia-all').checked = (cur.size >= ROLE_LIB.length)
+  $('rolepedia-all').checked = ROLE_LIB.every(n => cur.has(n))
   $('rolepedia-all').onchange = e => {
     bulkToggle(e, '确定「收集全部角色」吗？此操作可在更多菜单撤销。', () => {
       $('rolepedia-grid').querySelectorAll('input[data-field="role"]').forEach(cb => { cb.checked = e.target.checked })
@@ -1001,6 +1011,7 @@ let fanaticBackup = null // { idx, name, kill } 用于取消时还原
 function isFanaticName(n) { return FANATIC_NAMES.includes(n) }
 async function updateFanaticUI() {
   const sel = $('fanatic-name'), st = $('fanatic-state'), on = $('fanatic-on'), off = $('fanatic-off')
+  const restore = $('fanatic-restore')
   if (!sel || !st || !on || !off) return
   if (!sel.options.length) FANATIC_NAMES.forEach(n => sel.appendChild(el('option', null, n)))
   const sys = S.system && S.system.obj
@@ -1008,14 +1019,19 @@ async function updateFanaticUI() {
   const slot = data && data[roleSlotIdx]
   const name = (slot && slot.stat && slot.stat.f) ? slot.stat.f.name : ''
   const kill = sys ? Number(sys.kill) : 0
+  // 玩家名：优先本次会话备份，其次当前非狂信徒名；已有输入不覆盖
+  if (restore && !restore.value) {
+    if (fanaticBackup && fanaticBackup.idx === roleSlotIdx && fanaticBackup.name) restore.value = fanaticBackup.name
+    else if (name && !isFanaticName(name)) restore.value = name
+  }
   if (isFanaticName(name) && kill !== 0) {
     sel.value = name; st.textContent = '已激活（真·狂信徒路线）'
     st.style.color = 'var(--danger, #e5533d)'; on.disabled = false; off.disabled = false
   } else {
-    if (isFanaticName(name) && kill === 0) { st.textContent = '名字已设，但系统 sf.kill≠0 也未满足（请在「概览」设置）'; sel.value = name }
-    else if (kill !== 0 && name && !isFanaticName(name)) st.textContent = 'sf.kill≠0 但名字非狂信徒名'
+    if (isFanaticName(name) && kill === 0) { st.textContent = '名字是狂信徒名，但 sf.kill=0（未激活，可点「关闭」恢复玩家名）'; sel.value = name }
+    else if (kill !== 0) st.textContent = 'sf.kill≠0 但名字非狂信徒名（可直接关闭）'
     else st.textContent = '未激活'
-    st.style.color = ''; on.disabled = false; off.disabled = true
+    st.style.color = ''; on.disabled = false; off.disabled = !(kill !== 0 || isFanaticName(name))
   }
 }
 $('fanatic-on').addEventListener('click', async () => {
@@ -1043,22 +1059,31 @@ $('fanatic-on').addEventListener('click', async () => {
 $('fanatic-off').addEventListener('click', async () => {
   const sys = S.system && S.system.obj
   const data = await ensureSlotData()
-  if (!data || !sys) return
+  if (!data || !sys) { showToast('请先打开槽位与系统存档', 'error'); return }
   const idx = roleSlotIdx
   const slot = data[idx]
-  if (!slot) return
+  if (!slot) { showToast('槽位不存在', 'error'); return }
   slot.stat = slot.stat || {}; slot.stat.f = slot.stat.f || {}
-  if (fanaticBackup && fanaticBackup.idx === idx) { slot.stat.f.name = fanaticBackup.name || ''; sys.kill = fanaticBackup.kill }
-  else { slot.stat.f.name = ''; sys.kill = 0 }
+  const typed = (($('fanatic-restore') || {}).value || '').trim()
+  // 恢复名字优先级：手动输入 > 本次会话备份 > 当前非狂信徒名；绝不写空名
+  let restoreName = ''
+  if (typed && !isFanaticName(typed)) restoreName = typed
+  else if (fanaticBackup && fanaticBackup.idx === idx && fanaticBackup.name) restoreName = fanaticBackup.name
+  else if (slot.stat.f.name && !isFanaticName(slot.stat.f.name)) restoreName = slot.stat.f.name
+  if (!restoreName) { showToast('请先在「玩家名」栏输入要恢复的玩家名', 'error'); return }
+  slot.stat.f.name = restoreName
+  sys.kill = 0
   const r1 = await window.api.writeText(S.slots.path, encodeSave(S.slots.obj))
   const r2 = await window.api.writeText(S.system.path, encodeSave(S.system.obj))
-  if (r1 && r2) { showToast('已退出狂信徒线', 'success'); S.unsaved = false }
-  else showToast('写入失败', 'error')
+  if (r1 && r2) { showToast('已关闭狂信徒线，玩家名恢复为「' + restoreName + '」', 'success'); S.unsaved = false }
+  else showToast('写入失败（请确认已打开槽位与系统存档）', 'error')
   fanaticBackup = null
+  if ($('fanatic-restore')) $('fanatic-restore').value = restoreName
   updateNameHint(); updateFanaticUI(); applyFanaticTheme()
 })
 $('role-slot').addEventListener('change', e => {
   roleSlotIdx = +e.target.value
+  if ($('fanatic-restore')) $('fanatic-restore').value = '' // 换槽位后重新预填玩家名
   const data = S.slots && S.slots.obj && S.slots.obj.data
   if (data && data[roleSlotIdx]) { renderRoleBody(data[roleSlotIdx]); updateFanaticUI() }
 })
@@ -1302,12 +1327,18 @@ function collectSystem() {
   })
   m.sticker = [...stickers].sort((a, b) => a - b)
   // 角色收集（图鉴勾选）
-  const roles = new Set(String(m.collectedCharacters || []).split(',').filter(Boolean))
+  // 注意：sf.characters 与 sf.collectedCharacters 必须保持同步。游戏内
+  // collect_character 只在追加 sf.characters 的同时才会追加 sf.collectedCharacters，
+  // 若只从收集表移除，游戏里再次遇到该角色也永远无法重新解锁。
+  const roles = new Set(String(m.collectedCharacters || '').split(',').filter(Boolean).map(normCharaName))
+  const charSet = new Set(String(m.characters || '').split(',').filter(Boolean).map(normCharaName))
   document.querySelectorAll('input[data-field="role"]').forEach(cb => {
-    if (cb.checked) roles.add(cb.dataset.name)
-    else roles.delete(cb.dataset.name)
+    if (cb.checked) { roles.add(cb.dataset.name); charSet.add(cb.dataset.name) }
+    else { roles.delete(cb.dataset.name); charSet.delete(cb.dataset.name) }
   })
+  // 以角色全集为准写回，顺带清掉旧版本残留的错误条目
   m.collectedCharacters = ROLE_LIB.filter(n => roles.has(n))
+  m.characters = ROLE_LIB.filter(n => charSet.has(n))
   // 剧场（omakes：结局编号集合）
   const omakeSet = new Set(String(m.omakes || []).split(',').filter(Boolean))
   document.querySelectorAll('input[data-field="omake"]').forEach(cb => {
