@@ -118,11 +118,13 @@
                 <span id="fanatic-state" class="hint"></span>
               </div>
               <div class="fanatic-row">
-                <label for="fanatic-name">名字</label>
+                <label for="fanatic-name">狂信徒名</label>
                 <select id="fanatic-name"></select>
                 <button id="fanatic-on" class="btn primary">设为狂信徒线</button>
-                <button id="fanatic-off" class="btn" disabled>取消</button>
-                <label style="color:var(--muted)">触发：槽位名字为特殊名 + 系统 sf.kill≠0</label>
+                <label for="fanatic-restore">玩家名</label>
+                <input id="fanatic-restore" style="width:150px" placeholder="关闭时恢复的玩家名" />
+                <button id="fanatic-off" class="btn" disabled>关闭狂信徒线</button>
+                <label style="color:var(--muted)">触发：槽位名字为特殊名 + 系统 sf.kill≠0；关闭时恢复为「玩家名」</label>
               </div>
             </div>
             <div class="legend" style="flex-wrap:wrap">
